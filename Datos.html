@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Datos personales</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header class="encabezado">
+        <a class="marca" href="index.html">
+            <span class="marca-simbolo">
+                <img src="Logo.png" alt="Logo de Easy Locker">
+            </span>
+            <span>Easy <b>Locker</b></span>
+        </a>
+        <button class="boton-menu" id="botonMenu">☰</button>
+        <nav class="navegacion" id="navegacion">
+            <a href="index.html">Inicio</a>
+            <a class="activo" href="Datos.html">Datos personales</a>
+            <a href="casilleros.html">Casilleros</a>
+            <a href="historial.html">Historial</a>
+            <a href="planes.html">Planes</a>
+            <a href="cuenta.html">Mi cuenta</a>
+        </nav>
+    </header>
+
+
+    <main class="seccion pagina-formulario">
+        <div class="seccion-titulo">
+            <p class="etiqueta">MI INFORMACIÓN</p>
+            <h1>Datos personales</h1>
+            <p>
+                Consulta y modifica la información asociada a tu cuenta.
+            </p>
+        </div>
+
+
+        <form class="formulario" id="formDatos">
+            <div class="campo">
+                <label for="datosNombre">Nombre(s)</label>
+                <input
+                    id="datosNombre"
+                    type="text"
+                    required
+                    placeholder="Ingresa tu nombre"
+                >
+            </div>
+
+
+            <div class="campo">
+                <label for="datosApellidos">Apellido(s)</label>
+                <input
+                    id="datosApellidos"
+                    type="text"
+                    required
+                    placeholder="Ingresa tus apellidos"
+                >
+            </div>
+
+
+            <div class="campo">
+                <label for="datosMatricula">Matrícula</label>
+                <input
+                    id="datosMatricula"
+                    type="text"
+                    required
+                    placeholder="Ingresa tu matrícula"
+                >
+            </div>
+
+
+            <div class="campo">
+                <label for="datosCorreo">Correo institucional</label>
+                <input
+                    id="datosCorreo"
+                    type="email"
+                    required
+                    placeholder="ejemplo@uanl.edu.mx"
+                >
+            </div>
+
+
+            <div class="campo">
+                <label for="datosFacultad">Facultad</label>
+                <select id="datosFacultad" required>
+                    <option value="">
+                        Selecciona tu facultad
+                    </option>
+                    <option>
+                        Facultad de Ciencias Físico-Matemáticas
+                    </option>
+                    <option>
+                        Facultad de Ingeniería Mecánica y Eléctrica
+                    </option>
+                    <option>
+                        Facultad de Artes Visuales
+                    </option>
+                    <option>
+                        Otra facultad
+                    </option>
+                </select>
+            </div>
+
+
+            <div class="campo">
+                <label for="datosContrasena">Contraseña</label>
+                <input
+                    id="datosContrasena"
+                    type="password"
+                    required
+                    minlength="6"
+                    placeholder="Ingresa tu contraseña"
+                >
+            </div>
+
+
+            <div class="campo">
+                <label for="datosConfirmar">
+                    Confirmar contraseña
+                </label>
+                <input
+                    id="datosConfirmar"
+                    type="password"
+                    required
+                    minlength="6"
+                    placeholder="Repite tu contraseña"
+                >
+            </div>
+
+
+            <button
+                class="boton boton-principal"
+                type="submit"
+            >
+                Guardar cambios
+            </button>
+            <p
+                class="mensaje"
+                id="mensajeDatos"
+            ></p>
+        </form>
+    </main>
+
+
+    <footer class="pie">
+        <p>
+            Easy Locker · Proyecto académico universitario
+        </p>
+
+    </footer>
+    <script src="app.js"></script>
+
+</body>
+</html>

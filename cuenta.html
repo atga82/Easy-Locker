@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Mi cuenta</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header class="encabezado">
+        <a class="marca" href="index.html">
+            <span class="marca-simbolo">
+                <img src="Logo.png" alt="Logo de Easy Locker">
+            </span>
+            <span>Easy <b>Locker</b></span>
+        </a>
+
+        <button class="boton-menu" id="botonMenu">☰</button>
+
+        <nav class="navegacion" id="navegacion">
+            <a href="index.html">Inicio</a>
+             <a href="Datos.html">Datos personales</a>
+            <a href="casilleros.html">Casilleros</a>
+             <a href="historial.html">Historial</a>
+            <a href="planes.html">Planes</a>
+            <a class="activo" href="cuenta.html">Mi cuenta</a>
+        </nav>
+    </header>
+
+    <main class="seccion">
+        <div class="seccion-titulo">
+            <h1>Mi cuenta</h1>
+            <p>Consulta tus datos y el resumen de tu solicitud.</p>
+        </div>
+
+        <section class="perfil">
+            <div class="avatar">A</div>
+            <div>
+                <h2 id="cuentaNombre">Alumno visitante</h2>
+                <p id="cuentaCorreo">Aún no se ha registrado una cuenta.</p>
+            </div>
+        </section>
+
+        <section class="datos-cuenta">
+            <article>
+                <span>Facultad</span>
+                <strong id="cuentaFacultad">Sin registrar</strong>
+            </article>
+
+            <article>
+                <span>Casillero</span>
+                <strong id="cuentaCasillero">No seleccionado</strong>
+            </article>
+
+            <article>
+                <span>Plan de renta</span>
+                <strong id="cuentaPlan">Sin elegir</strong>
+            </article>
+        </section>
+
+        <div class="acciones">
+            <a class="boton boton-principal" href="casilleros.html">Elegir casillero</a>
+            <a class="boton boton-secundario" href="planes.html">Ver planes</a>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <p>Easy Locker · Proyecto académico universitario</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

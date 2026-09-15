@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Historial</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<header class="encabezado">
+    <a class="marca" href="index.html">
+        <span class="marca-simbolo">
+            <img src="Logo.png" alt="Logo de Easy Locker">
+        </span>
+        <span>Easy <b>Locker</b></span>
+    </a>
+    <button class="boton-menu" id="botonMenu">☰</button>
+
+    <nav class="navegacion" id="navegacion">
+        <a href="index.html">Inicio</a>
+        <a href="Datos.html">Datos personales</a>
+        <a href="casilleros.html">Casilleros</a>
+        <a href="historial.html">Historial</a>
+        <a href="planes.html">Planes</a>
+        <a class="activo" href="historial.html">Historial</a>
+        <a href="cuenta.html">Mi cuenta</a>
+    </nav>
+</header>
+
+<main class="seccion">
+    <div class="seccion-titulo">
+        <p class="etiqueta">MIS RENTAS</p>
+        <h1>Historial de casilleros</h1>
+        <p>
+            Consulta los casilleros que has seleccionado
+            y la información relacionada con tus rentas.
+        </p>
+    </div>
+
+
+    <section class="historial-resumen">
+        <article class="tarjeta-resumen">
+            <span>Rentas registradas</span>
+            <strong id="cantidadRentas">0</strong>
+        </article>
+        <article class="tarjeta-resumen">
+            <span>Renta actual</span>
+            <strong id="rentaActual">Sin renta</strong>
+        </article>
+
+        <article class="tarjeta-resumen">
+            <span>Facultad</span>
+            <strong id="historialFacultad">Sin seleccionar</strong>
+        </article>
+    </section>
+
+
+    <section class="panel-historial">
+
+        <div class="mapa-encabezado">
+            <div>
+                <p class="etiqueta">HISTORIAL</p>
+                <h2>Casilleros seleccionados</h2>
+            </div>
+        </div>
+
+
+        <div class="tabla-contenedor">
+            <table class="tabla-historial">
+
+                <thead>
+                    <tr>
+                        <th>Facultad</th>
+                        <th>Ubicación</th>
+                        <th>Plan</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaHistorial">
+                    <tr id="historialVacio">
+                        <td colspan="4">
+                            Todavía no se han registrado rentas.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<footer class="pie">
+    <p>Easy Locker · Proyecto académico universitario</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

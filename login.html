@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Iniciar sesión</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header class="encabezado">
+        <a class="marca" href="index.html">
+            <span class="marca-simbolo">
+                <img src="Logo.png" alt="Logo de Easy Locker">
+            </span>
+            <span>Easy <b>Locker</b></span>
+        </a>
+
+        <button class="boton-menu" id="botonMenu">☰</button>
+
+       
+    </header>
+
+    <main class="seccion pagina-formulario pagina-login">
+        <div class="seccion-titulo">
+            <p class="etiqueta">ACCESO A TU CUENTA</p>
+            <h1>Iniciar sesión</h1>
+            <p>Ingresa con tu correo institucional para administrar tu casillero.</p>
+        </div>
+
+
+            <form class="formulario formulario-login" id="formLogin">
+    <div class="campo">
+        <label for="loginCorreo">Correo institucional</label>
+        <input
+            id="loginCorreo"
+            type="email"
+            required
+            placeholder="ejemplo@uanl.edu.mx"
+        >
+    </div>
+
+            <div class="campo">
+                <label for="loginContrasena">Contraseña</label>
+                <input
+                    id="loginContrasena"
+                    type="password"
+                    required
+                    placeholder="Ingresa tu contraseña"
+                >
+            </div>
+
+            <button class="boton boton-principal" type="submit">
+                Iniciar sesión
+            </button>
+
+            <p class="mensaje" id="mensajeLogin"></p>
+
+            <p class="texto-registro">
+                ¿No tienes una cuenta?
+                <a href="registro.html">Regístrate aquí</a>
+            </p>
+        </form>
+    </main>
+
+    <footer class="pie">
+        <p>Easy Locker · Proyecto académico universitario</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

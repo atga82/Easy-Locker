@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Pago</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+
+<body>
+    <header class="encabezado">
+        <a class="marca" href="index.html">
+            <span class="marca-simbolo">
+                <img src="Logo.png" alt="Logo de Easy Locker">
+            </span>
+            <span>Easy <b>Locker</b></span>
+        </a>
+    </header>
+
+    <main class="seccion pagina-formulario pagina-pago">
+        <div class="seccion-titulo">
+            <p class="etiqueta">FORMA DE PAGO</p>
+            <h1>Completa tu suscripción</h1>
+            <p>
+                Ingresa los datos de tu tarjeta para completar
+                la simulación de compra.
+            </p>
+        </div>
+
+        <div class="contenedor-pago">
+            <section class="resumen-pago">
+                <p class="etiqueta">RESUMEN</p>
+                <h2 id="pagoPlan">Plan seleccionado</h2>
+                <div class="detalle-pago">
+                    <span>Suscripción</span>
+                    <strong id="pagoPrecio">$0</strong>
+                </div>
+                <p class="aviso-pago">
+                    Esta pantalla forma parte del prototipo.
+                    No se realizará ningún cobro real.
+                </p>
+            </section>
+
+
+            <form class="formulario formulario-pago" id="formPago">
+                <div class="campo campo-completo">
+                    <label for="titular">
+                        Nombre del titular
+                    </label>
+                    <input
+                        id="titular"
+                        type="text"
+                        required
+                        placeholder="Nombre como aparece en la tarjeta"
+                    >
+                </div>
+
+
+                <div class="campo campo-completo">
+                    <label for="numeroTarjeta">
+                        Número de tarjeta
+                    </label>
+                    <input
+                        id="numeroTarjeta"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="19"
+                        required
+                        placeholder="0000 0000 0000 0000"
+                    >
+                </div>
+
+
+                <div class="campo">
+                    <label for="vencimiento">
+                        Vencimiento
+                    </label>
+                    <input
+                        id="vencimiento"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="5"
+                        required
+                        placeholder="MM/AA"
+                    >
+                </div>
+
+
+                <div class="campo">
+                    <label for="cvv">
+                        CVV
+                    </label>
+                    <input
+                        id="cvv"
+                        type="password"
+                        inputmode="numeric"
+                        maxlength="4"
+                        required
+                        placeholder="123"
+                    >
+                </div>
+
+
+                <div class="acciones-pago">
+                    <a
+                        class="boton boton-secundario"
+                        href="index.html"
+                    >
+                        Regresar
+                    </a>
+                    <button
+                        class="boton boton-principal"
+                        type="submit"
+                    >
+                        Pagar
+                    </button>
+                </div>
+                <p
+                    class="mensaje"
+                    id="mensajePago"
+                ></p>
+            </form>
+        </div>
+    </main>
+
+
+    <footer class="pie">
+        <p>
+            Easy Locker · Proyecto académico universitario
+        </p>
+    </footer>
+
+
+    <script src="app.js"></script>
+
+</body>
+</html>
