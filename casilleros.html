@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Casilleros</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header class="encabezado">
+        <a class="marca" href="index.html">
+            <span class="marca-simbolo">
+                <img src="Logo.png" alt="Logo de Easy Locker">
+            </span>
+            <span>Easy <b>Locker</b></span>
+        </a>
+
+        <button class="boton-menu" id="botonMenu">☰</button>
+
+        <nav class="navegacion" id="navegacion">
+            <a href="index.html">Inicio</a>
+            <a href="registro.html">Registro</a>
+            <a class="activo" href="casilleros.html">Casilleros</a>
+            <a href="planes.html">Planes</a>
+            <a href="cuenta.html">Mi cuenta</a>
+        </nav>
+    </header>
+
+    <main class="seccion">
+        <div class="seccion-titulo">
+            <h1>Selecciona tu casillero</h1>
+            <p>Elige el edificio, el piso y un casillero disponible.</p>
+        </div>
+
+        <div class="controles">
+            <div class="campo">
+                <label for="edificio">Edificio</label>
+                <select id="edificio">
+                    <option>Edificio A</option>
+                    <option>Edificio B</option>
+                </select>
+            </div>
+
+            <div class="campo">
+                <label for="piso">Piso</label>
+                <select id="piso">
+                    <option value="1">Piso 1</option>
+                    <option value="2">Piso 2</option>
+                    <option value="3">Piso 3</option>
+                </select>
+            </div>
+        </div>
+
+        <section class="mapa">
+            <div class="mapa-encabezado">
+                <div>
+                    <p class="etiqueta">MAPA INTERACTIVO</p>
+                    <h2 id="tituloPiso">Edificio A · Piso 1</h2>
+                </div>
+                <span class="etiqueta-piso">4 filas · 12 columnas</span>
+            </div>
+
+            <div class="pantalla">ACCESO PRINCIPAL</div>
+
+            <div class="filas" id="filasCasilleros"></div>
+
+            <div class="leyenda">
+                <span><i class="disponible"></i> Disponible</span>
+                <span><i class="ocupado"></i> Ocupado</span>
+                <span><i class="seleccionado"></i> Seleccionado</span>
+            </div>
+        </section>
+
+        <div class="resumen">
+            <div>
+                <span>Casillero seleccionado</span>
+                <strong id="casilleroSeleccionado">Ninguno</strong>
+            </div>
+            <a class="boton boton-principal" href="planes.html" id="continuarCasillero">Continuar</a>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <p>Easy Locker · Proyecto académico universitario</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

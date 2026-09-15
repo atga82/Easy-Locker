@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Locker | Planes</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header class="encabezado">
+        <a class="marca" href="index.html">
+            <span class="marca-simbolo">
+                <img src="Logo.png" alt="Logo de Easy Locker">
+            </span>
+            <span>Easy <b>Locker</b></span>
+        </a>
+
+        <button class="boton-menu" id="botonMenu">☰</button>
+
+        <nav class="navegacion" id="navegacion">
+            <a href="index.html">Inicio</a>
+            <a href="registro.html">Registro</a>
+            <a href="casilleros.html">Casilleros</a>
+            <a class="activo" href="planes.html">Planes</a>
+            <a href="cuenta.html">Mi cuenta</a>
+        </nav>
+    </header>
+
+    <main class="seccion">
+        <div class="seccion-titulo">
+            <h1>Planes de renta</h1>
+            <p>Elige la opción que mejor se adapte a tus necesidades.</p>
+        </div>
+
+        <div class="planes">
+            <article class="plan">
+                <span class="plan-etiqueta">FLEXIBLE</span>
+                <h2>Renta diaria</h2>
+                <p class="precio">$25 <small>/ día</small></p>
+                <ul>
+                    <li>Uso durante un día.</li>
+                    <li>Ideal para estancias cortas.</li>
+                    <li>Consulta de disponibilidad.</li>
+                </ul>
+                <button class="boton boton-secundario boton-plan" data-plan="Renta diaria">Seleccionar</button>
+            </article>
+
+            <article class="plan destacado">
+                <span class="plan-etiqueta">RECOMENDADO</span>
+                <h2>Renta semestral</h2>
+                <p class="precio">$650 <small>/ semestre</small></p>
+                <ul>
+                    <li>Acceso durante todo el semestre.</li>
+                    <li>Mayor comodidad para el alumno.</li>
+                    <li>Historial y comprobante digital.</li>
+                </ul>
+                <button class="boton boton-principal boton-plan" data-plan="Renta semestral">Seleccionar</button>
+            </article>
+        </div>
+
+        <p class="mensaje" id="mensajePlan"></p>
+    </main>
+
+    <footer class="pie">
+        <p>Easy Locker · Proyecto académico universitario</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
