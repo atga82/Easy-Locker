@@ -7,42 +7,62 @@ if (botonMenu && navegacion) {
     });
 }
 
+
 const formRegistro = document.querySelector("#formRegistro");
 
 if (formRegistro) {
-    formRegistro.addEventListener("submit", (evento) => {
-        evento.preventDefault();
+  formRegistro.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
 
-        const nombre = document.querySelector("#nombre").value.trim();
-        const apellidos = document.querySelector("#apellidos").value.trim();
-        const correo = document.querySelector("#correo").value.trim();
-        const facultad = document.querySelector("#facultad").value;
-        const contrasena = document.querySelector("#contrasena").value;
-        const confirmar = document.querySelector("#confirmar").value;
-        const mensaje = document.querySelector("#mensajeRegistro");
-        const matricula = document.querySelector("#matricula").value.trim();
+    const mensaje = document.querySelector("#mensajeRegistro");
 
-        if (contrasena !== confirmar) {
-            mensaje.textContent = "Las contraseñas no coinciden.";
-            return;
-        }
+    const datos = {
+      nombre: document.querySelector("#nombre").value.trim(),
+      apellidos: document.querySelector("#apellidos").value.trim(),
+      matricula: document.querySelector("#matricula").value.trim(),
+      correo: document.querySelector("#correo").value.trim(),
+      facultad: document.querySelector("#facultad").value,
+      contrasena: document.querySelector("#contrasena").value
+    };
 
-        localStorage.setItem("easyLockerUsuario", JSON.stringify({
-            nombre,
-            apellidos,
-            matricula,
-            correo,
-            facultad,
-            contrasena
-        }));
+    const confirmar = document.querySelector("#confirmar").value;
 
-       mensaje.textContent = "Registro completado correctamente. Redirigiendo al inicio de sesión...";
+    if (datos.contrasena !== confirmar) {
+      mensaje.textContent = "Las contraseñas no coinciden.";
+      return;
+    }
 
+    if (datos.contrasena.length < 8) {
+      mensaje.textContent = "Usa al menos 8 caracteres.";
+      return;
+    }
+
+    try {
+      const respuesta = await fetch("/api/registro", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(datos)
+      });
+
+      const resultado = await respuesta.json();
+      mensaje.textContent = resultado.mensaje;
+
+      if (respuesta.ok) {
+        formRegistro.reset();
         setTimeout(() => {
-            window.location.href = "login.html";
+          window.location.href = "login.html";
         }, 1500);
-    });
+      }
+
+    } catch (error) {
+      mensaje.textContent = "No se pudo conectar con el servidor.";
+      console.error(error);
+    }
+  });
 }
+
 
 const pisoSelect = document.querySelector("#piso");
 const edificioSelect = document.querySelector("#edificio");
@@ -241,22 +261,44 @@ if (planGuardado) {
     }
 }
 
+
 const formLogin = document.querySelector("#formLogin");
 
 if (formLogin) {
-    formLogin.addEventListener("submit", (evento) => {
-        evento.preventDefault();
+  formLogin.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
 
-        const correo = document.querySelector("#loginCorreo").value.trim();
-        const mensaje = document.querySelector("#mensajeLogin");
+    const correo = document.querySelector("#loginCorreo").value.trim();
+    const contrasena = document.querySelector("#loginContrasena").value;
+    const mensaje = document.querySelector("#mensajeLogin");
 
-        mensaje.textContent = `Inicio de sesión de demostración para ${correo}.`;
+    mensaje.textContent = "Verificando credenciales...";
 
+    try {
+      const respuesta = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ correo, contrasena })
+      });
+
+      const resultado = await respuesta.json();
+      mensaje.textContent = resultado.mensaje;
+
+      if (respuesta.ok) {
         setTimeout(() => {
-            window.location.href = "index.html";
-        }, 1200);
-    });
+          window.location.href = "index.html";
+        }, 1000);
+      }
+
+    } catch (error) {
+      mensaje.textContent = "No se pudo conectar con el servidor.";
+      console.error(error);
+    }
+  });
 }
+
 
 
 const formDatos = document.querySelector("#formDatos");
