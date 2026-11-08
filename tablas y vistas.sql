@@ -1,20 +1,3 @@
--- =============================================================
--- EASY LOCKER - Esquema de base de datos para MySQL 8.0+
--- Proyecto: Programacion Web II
---
--- Incluye:
---   1. Catalogos: roles, facultades, edificios, pisos y planes.
---   2. Usuarios, casilleros, rentas, pagos y bitacora.
---   3. Datos iniciales tomados de las opciones visibles del prototipo.
---   4. Cuatro vistas para la seccion de reportes.
---
--- IMPORTANTE:
---   - Ejecutar el archivo completo en MySQL Workbench.
---   - Las contrasenas se guardan como HASH, nunca en texto plano.
---   - No se almacenan numero completo de tarjeta, fecha de vencimiento
---     ni CVV. En una integracion real se guarda el token/referencia del
---     proveedor de pagos.
--- =============================================================
 
 SET NAMES utf8mb4;
 
@@ -24,10 +7,7 @@ CREATE DATABASE IF NOT EXISTS easy_locker
 
 USE easy_locker;
 
--- =============================================================
--- 1. ROLES
--- Distingue estudiantes y admin
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS roles (
     id              SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
     nombre          VARCHAR(30) NOT NULL,
@@ -37,13 +17,7 @@ CREATE TABLE IF NOT EXISTS roles (
     UNIQUE KEY uq_roles_nombre (nombre)
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 2. FACULTADES
--- El registro del prototipo presenta estas opciones.
--- "Otra facultad" se conserva como opcion de registro, pero no recibe
--- edificios/casilleros iniciales porque el selector de ubicacion no la
--- ofrece actualmente.
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS facultades (
     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
     nombre          VARCHAR(150) NOT NULL,
@@ -54,12 +28,7 @@ CREATE TABLE IF NOT EXISTS facultades (
     UNIQUE KEY uq_facultades_nombre (nombre)
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 3. USUARIOS
--- Corresponde al registro, login, datos personales y mi cuenta.
--- password_hash debe contener el resultado de password_hash() u otro
--- algoritmo seguro del backend; jamas guardar la contrasena original.
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS usuarios (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     rol_id          SMALLINT UNSIGNED NOT NULL,
@@ -85,9 +54,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 4. EDIFICIOS
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS edificios (
     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
     facultad_id     INT UNSIGNED NOT NULL,
@@ -101,9 +68,7 @@ CREATE TABLE IF NOT EXISTS edificios (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 5. PISOS
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS pisos (
     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
     edificio_id     INT UNSIGNED NOT NULL,
@@ -117,11 +82,6 @@ CREATE TABLE IF NOT EXISTS pisos (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 6. CASILLEROS
--- Cada casillero tiene una posicion unica dentro de un piso.
--- El estado reemplaza las listas estaticas de ocupadosPorPiso en app.js.
--- =============================================================
 CREATE TABLE IF NOT EXISTS casilleros (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     piso_id         INT UNSIGNED NOT NULL,
@@ -144,12 +104,7 @@ CREATE TABLE IF NOT EXISTS casilleros (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 7. PLANES
--- Precios y nombres visibles en planes.html:
---   Renta diaria:     $25 por dia.
---   Renta semestral:  $650 por semestre.
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS planes (
     id                  SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
     nombre              VARCHAR(80) NOT NULL,
@@ -167,14 +122,7 @@ CREATE TABLE IF NOT EXISTS planes (
     CONSTRAINT chk_planes_precio CHECK (precio >= 0)
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 8. RENTAS
--- Esta tabla alimenta la pantalla Historial y la cuenta del alumno.
--- precio_total conserva el precio aplicado al momento de contratar;
--- asi, cambiar el precio del catalogo no altera rentas anteriores.
--- Una renta se crea como pendiente_pago y pasa a activa al aprobarse
--- el pago. Al terminar, se marca finalizada/cancelada/vencida.
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS rentas (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     usuario_id          BIGINT UNSIGNED NOT NULL,
@@ -208,12 +156,7 @@ CREATE TABLE IF NOT EXISTS rentas (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 9. PAGOS
--- Guarda el resultado de cada intento de pago asociado a una renta.
--- NO guardar aqui el PAN, CVV ni vencimiento.
--- Para una pasarela real se guarda su identificador/token seguro.
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS pagos (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     renta_id            BIGINT UNSIGNED NOT NULL,
@@ -237,12 +180,7 @@ CREATE TABLE IF NOT EXISTS pagos (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- =============================================================
--- 10. LOGS DEL SISTEMA
--- Para registrar inicio/fin de procesos criticos y excepciones del
--- backend.
--- contexto_json no debe contener contrasenas, CVV ni datos sensibles.
--- =============================================================
+
 CREATE TABLE IF NOT EXISTS logs_sistema (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     usuario_id      BIGINT UNSIGNED NULL,
@@ -261,10 +199,7 @@ CREATE TABLE IF NOT EXISTS logs_sistema (
         ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
--- =============================================================
--- DATOS INICIALES
--- Roles, facultades y planes. 
--- =============================================================
+
 INSERT INTO roles (nombre, descripcion) VALUES
     ('estudiante', 'Usuario que solicita y administra rentas de casilleros'),
     ('administrador', 'Usuario que administra inventario, usuarios, rentas y reportes')
@@ -316,8 +251,7 @@ WHERE 1 = 1
 ON DUPLICATE KEY UPDATE
     activo = TRUE;
 
--- Cada piso del prototipo muestra 4 filas x 12 columnas = 48 casilleros.
--- Se inicializan disponibles; la ocupacion real se controla con rentas.
+
 INSERT INTO casilleros (piso_id, numero, fila, columna, estado)
 SELECT
     p.id,
@@ -343,12 +277,6 @@ ON DUPLICATE KEY UPDATE
     fila = VALUES(fila),
     columna = VALUES(columna);
 
--- =============================================================
--- VISTAS PARA LA SECCION DE REPORTES
--- Se pueden consultar desde el backend con SELECT * FROM nombre_vista.
--- =============================================================
-
--- REPORTE 1: Historial detallado de rentas por usuario.
 CREATE OR REPLACE VIEW vw_historial_rentas AS
 SELECT
     r.id AS renta_id,
@@ -387,7 +315,7 @@ LEFT JOIN pagos AS ultimo_pago
         LIMIT 1
     );
 
--- REPORTE 2: Inventario y porcentaje de ocupacion por edificio y piso.
+
 CREATE OR REPLACE VIEW vw_ocupacion_casilleros AS
 SELECT
     f.id AS facultad_id,
@@ -413,7 +341,7 @@ INNER JOIN pisos AS pi ON pi.edificio_id = e.id
 LEFT JOIN casilleros AS c ON c.piso_id = pi.id
 GROUP BY f.id, f.nombre, e.id, e.nombre, pi.id, pi.numero_piso;
 
--- REPORTE 3: Ingresos mensuales por facultad (solo pagos aprobados).
+
 CREATE OR REPLACE VIEW vw_ingresos_mensuales AS
 SELECT
     DATE_FORMAT(pg.pagado_en, '%Y-%m') AS periodo,
@@ -437,7 +365,7 @@ GROUP BY
     f.nombre,
     pg.moneda;
 
--- REPORTE 4: Rentas e ingresos agrupados por plan.
+
 CREATE OR REPLACE VIEW vw_rentas_por_plan AS
 SELECT
     pl.id AS plan_id,
@@ -462,10 +390,3 @@ LEFT JOIN (
 ) AS pagos_aprobados ON pagos_aprobados.renta_id = r.id
 GROUP BY pl.id, pl.nombre, pl.precio, pl.moneda;
 
--- SELECT * FROM roles;
--- SELECT * FROM facultades;
--- SELECT * FROM planes;
--- SELECT * FROM vw_historial_rentas ORDER BY fecha_solicitud DESC;
--- SELECT * FROM vw_ocupacion_casilleros ORDER BY facultad, edificio, numero_piso;
--- SELECT * FROM vw_ingresos_mensuales ORDER BY periodo DESC, facultad;
--- SELECT * FROM vw_rentas_por_plan;

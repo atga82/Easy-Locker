@@ -19,9 +19,8 @@
 
         <nav class="navegacion" id="navegacion">
             <a href="index.html">Inicio</a>
-            <a href="Datos.html">Datos personales</a>
             <a class="activo" href="casilleros.html">Casilleros</a>
-            <a href="historial.html">Historial</a>
+            <a href="Historial.html">Historial</a>
             <a href="planes.html">Planes</a>
             <a href="cuenta.html">Mi cuenta</a>
         </nav>
@@ -30,7 +29,7 @@
     <main class="seccion">
         <div class="seccion-titulo">
             <h1>Selecciona tu casillero</h1>
-            <p>Elige el edificio, el piso y un casillero disponible.</p>
+            <p>Elige facultad, edificio y piso. Los casilleros ocupados no se pueden seleccionar.</p>
         </div>
 
             <div class="controles">
@@ -77,10 +76,10 @@
                     <p class="etiqueta">MAPA INTERACTIVO</p>
                     <h2 id="tituloPiso">Edificio A · Piso 1</h2>
                 </div>
-                <span class="etiqueta-piso">4 filas · 12 columnas</span>
+                <span class="etiqueta-piso">Casilleros ampliados · 6 por fila</span>
             </div>
 
-            <div class="pantalla">ACCESO PRINCIPAL</div>
+            <div class="pantalla">ACCESO PRINCIPAL · Entra por el acceso y busca la fila indicada</div>
 
             <div class="filas" id="filasCasilleros"></div>
 
@@ -106,14 +105,13 @@
                 </p>
                 <h2>Acceso al casillero</h2>
                 <p>
-                    El código estará disponible cuando
-                    la renta sea confirmada.
+                    <span id="estadoAcceso">El código de demostración estará disponible después de confirmar el pago. No abre una cerradura física.</span>
                 </p>
             </div>
 
             <div class="codigo-visual">
                 <span>Código</span>
-                <strong>------</strong>
+                <strong id="codigoAcceso">------</strong>
             </div>
         </section>
     </main>

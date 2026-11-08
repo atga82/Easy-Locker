@@ -1012,3 +1012,20 @@ h2 {
     }
 
 }
+/* Mejoras del mapa de casilleros: tarjetas grandes, 6 por fila y scroll adaptable */
+.mapa{width:100%;padding:clamp(18px,3vw,38px)}
+.filas{gap:20px;width:100%}
+.fila-casilleros{display:grid;grid-template-columns:78px repeat(6,minmax(0,1fr));gap:clamp(8px,1.2vw,18px);align-items:center;width:100%}
+.numero-fila{font-size:0.95rem;line-height:1.3}
+.casillero{height:clamp(105px,12vw,160px);min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:12px;background:linear-gradient(140deg,#f7fbff,#dce7f3);color:#14253b;font-weight:900;font-size:clamp(1.15rem,2vw,1.7rem);box-shadow:inset -5px 0 rgba(30,55,80,.10),0 5px 12px rgba(0,0,0,.16);transition:transform .15s,box-shadow .15s}
+.casillero:hover:not(:disabled){transform:translateY(-4px);box-shadow:0 8px 20px rgba(255,181,46,.22)}
+.casillero::before{top:12px;left:24%;width:52%;height:6px}
+.casillero-puerta{display:block;width:42%;height:35%;border:2px solid #9cb0c3;border-radius:6px;position:relative}
+.casillero-puerta::after{content:'';position:absolute;right:6px;top:35%;height:12px;width:4px;border-radius:5px;background:#75889a}
+.casillero.ocupado{color:#d9e3ee;background:#435467;opacity:.8}
+.casillero.seleccionado{background:#ffb52e;color:#172033}
+.casillero.seleccionado .casillero-puerta{border-color:#98620a}
+.casillero.seleccionado .casillero-puerta::after{background:#98620a}
+.codigo-visual strong{letter-spacing:5px}
+.formulario-perfil{margin-top:26px}
+@media(max-width:700px){.filas{overflow-x:auto;padding-bottom:12px}.fila-casilleros{min-width:650px;grid-template-columns:65px repeat(6,minmax(82px,1fr));gap:8px}.casillero{height:112px;font-size:1.25rem}.mapa{padding:18px 12px}}

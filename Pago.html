@@ -22,8 +22,7 @@
             <p class="etiqueta">FORMA DE PAGO</p>
             <h1>Completa tu suscripción</h1>
             <p>
-                Ingresa los datos de tu tarjeta para completar
-                la simulación de compra.
+                Confirma la reserva sin introducir información bancaria.
             </p>
         </div>
 
@@ -43,82 +42,15 @@
 
 
             <form class="formulario formulario-pago" id="formPago">
-                <div class="campo campo-completo">
-                    <label for="titular">
-                        Nombre del titular
-                    </label>
-                    <input
-                        id="titular"
-                        type="text"
-                        required
-                        placeholder="Nombre como aparece en la tarjeta"
-                    >
-                </div>
-
-
-                <div class="campo campo-completo">
-                    <label for="numeroTarjeta">
-                        Número de tarjeta
-                    </label>
-                    <input
-                        id="numeroTarjeta"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="19"
-                        required
-                        placeholder="0000 0000 0000 0000"
-                    >
-                </div>
-
-
-                <div class="campo">
-                    <label for="vencimiento">
-                        Vencimiento
-                    </label>
-                    <input
-                        id="vencimiento"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="5"
-                        required
-                        placeholder="MM/AA"
-                    >
-                </div>
-
-
-                <div class="campo">
-                    <label for="cvv">
-                        CVV
-                    </label>
-                    <input
-                        id="cvv"
-                        type="password"
-                        inputmode="numeric"
-                        maxlength="4"
-                        required
-                        placeholder="123"
-                    >
-                </div>
-
-
+                <h2>Confirmación de reserva</h2>
+                <p id="pagoUbicacion">Cargando ubicación...</p>
+                <p>Pago de demostración: no se solicitan ni procesan datos bancarios reales.</p>
+                <p>La reserva permanece pendiente por 15 minutos. Confirma para activar la renta.</p>
                 <div class="acciones-pago">
-                    <a
-                        class="boton boton-secundario"
-                        href="index.html"
-                    >
-                        Regresar
-                    </a>
-                    <button
-                        class="boton boton-principal"
-                        type="submit"
-                    >
-                        Pagar
-                    </button>
+                    <a class="boton boton-secundario" href="casilleros.html">Volver</a>
+                    <button class="boton boton-principal" type="submit">Confirmar pago simulado</button>
                 </div>
-                <p
-                    class="mensaje"
-                    id="mensajePago"
-                ></p>
+                <p id="mensajePago" role="status"></p>
             </form>
         </div>
     </main>
