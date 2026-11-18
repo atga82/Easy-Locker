@@ -48,7 +48,7 @@ async function main() {
   const faculty=await create('facultades',{nombre:prefix,activa:true});
   await update('facultades',faculty,{activa:false});
   const user=await create('usuarios',{rol:role,facultad:faculty,nombre:'QA',apellidos:'Temporal',
-    matricula:prefix,correo:prefix+'@example.invalid',password:'TemporalQA2026!',estado:'activo'});
+    matricula:String(Date.now()).slice(-10),correo:prefix+'@example.invalid',password:'TemporalQA2026!',estado:'activo'});
   await update('usuarios',user,{apellidos:'Actualizado'});
   const building=await create('edificios',{facultad:faculty,nombre:prefix,activo:true});
   await update('edificios',building,{activo:false});
@@ -95,7 +95,6 @@ async function main() {
   await expect('/api/admin/roles','GET',undefined,403,{Authorization:'Bearer '+studentLogin.token});
   await expect('/api/admin/roles','GET',undefined,401,{});
   console.log('OK: validaciones negativas, duplicados, autorización y permisos');
-  // El login QA genera un log asociado al usuario; retirarlo antes del DELETE protegido.
   await models.LogSistema.deleteMany({usuario:user});
   for(const [resource,id] of [...made].reverse()) await del(resource,id);
   assert.equal(made.length,0);

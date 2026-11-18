@@ -1,12 +1,11 @@
-// Pruebas sin base de datos ni datos financieros reales.
 const assert = require('node:assert/strict');
-const v = require('../validaciones');
+const v = require('../public/js/validaciones');
 assert.equal(v.errorAlumno({nombre:'José María',apellidos:'De la Cruz',matricula:'228931',correo:'ejemplo@uanl.edu.mx',contrasena:'Prueba2026'},true),'');
 assert.match(v.errorAlumno({nombre:'Juan1',apellidos:'Pérez',matricula:'228931',correo:'correo@example.com'},false),/nombre/i);
 assert.match(v.errorAlumno({nombre:'Juan',apellidos:'Pérez',matricula:'QA123',correo:'correo@example.com'},false),/matrícula/i);
 assert.equal(v.matriculaValida('000123'),true);
 assert.equal(v.matriculaValida('1234abc'),false);
-assert.equal(v.numeroTarjetaValido('4242 4242 4242 4242'),true); // Número conocido de test, no una tarjeta real.
+assert.equal(v.numeroTarjetaValido('4242 4242 4242 4242'),true);
 assert.equal(v.numeroTarjetaValido('4242 4242 4242 4243'),false);
 assert.equal(v.numeroTarjetaValido('1234567890123456'),false);
 assert.equal(v.numeroTarjetaValido('0000000000000000'),false);

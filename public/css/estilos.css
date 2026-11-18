@@ -769,7 +769,6 @@ h2 {
 }
 
 
-/* Campos y tarjeta de la página de pago. */
 .formulario-pago { gap: 16px 20px; }
 .pago-encabezado { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .pago-encabezado h2 { margin: 0; }
@@ -1031,7 +1030,6 @@ h2 {
     }
 
 }
-/* Mejoras del mapa de casilleros: tarjetas grandes, 6 por fila y scroll adaptable */
 .mapa{width:100%;padding:clamp(18px,3vw,38px)}
 .filas{gap:20px;width:100%}
 .fila-casilleros{display:grid;grid-template-columns:78px repeat(6,minmax(0,1fr));gap:clamp(8px,1.2vw,18px);align-items:center;width:100%}
@@ -1050,7 +1048,6 @@ h2 {
 @media(max-width:700px){.filas{overflow-x:auto;padding-bottom:12px}.fila-casilleros{min-width:650px;grid-template-columns:65px repeat(6,minmax(82px,1fr));gap:8px}.casillero{height:112px;font-size:1.25rem}.mapa{padding:18px 12px}}
 
 
-/* Panel administrativo conectado a MongoDB */
 .admin-page { max-width: 1320px; }
 .admin-summary {
     display: grid;
@@ -1141,7 +1138,6 @@ h2 {
     .admin-form-actions { flex-direction: column; }
 }
 
-/* Mejoras de planes: múltiples accesos, cambio semestral y avisos */
 .lista-codigos {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1179,7 +1175,6 @@ h2 {
     color: var(--secundario);
     font-size: .95rem;
 }
-/* Los avisos usan la misma paleta oscura que las pantallas originales. */
 .aviso-cambio, .aviso-agregar-semestral, .avisos-renta, .nota-politicas {
     border: 1px solid #8b692f;
     border-left: 5px solid var(--naranja);

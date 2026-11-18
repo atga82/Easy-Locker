@@ -8,6 +8,30 @@ Aplicación web para consultar y rentar casilleros universitarios. Esta versión
 - MongoDB Community Server (si se usa una base local) o MongoDB Atlas.
 - npm.
 
+## Organización del proyecto
+
+```text
+Easy-Locker/
+├── public/                 # Pantallas y archivos servidos al navegador
+│   ├── index.html, login.html, registro.html, ...
+│   ├── css/estilos.css
+│   ├── js/app.js, admin.js, validaciones.js
+│   └── assets/Logo.png
+├── docs/                   # Manual, capturas y antecedentes del proyecto
+│   └── historico/          # Documentación de versiones anteriores
+├── scripts/                # Actualización de planes
+├── tests/                  # Pruebas automatizadas
+├── server.js               # Rutas HTTP y lógica de la aplicación
+├── db.js, models.js        # Conexión y modelos MongoDB
+├── seed.js                 # Carga inicial de datos
+├── .env.example            # Plantilla sin credenciales reales
+└── package.json
+```
+
+Las URL de las pantallas siguen siendo `/index.html`, `/cuenta.html`, `/Admin.html`, etcétera. Express sirve **solo** la carpeta `public/`; el backend y la documentación no se publican como archivos estáticos.
+
+`tests/` y `.env.example` se conservan en el repositorio: las pruebas permiten revisar cambios y la plantilla explica cómo iniciar el proyecto sin compartir secretos. El archivo privado `.env` nunca debe añadirse a Git.
+
 ## Instalación en Windows
 
 1. Si vas a trabajar con una base local, instala e inicia MongoDB Community Server. Si usarás Atlas, puedes omitir este paso.
@@ -61,7 +85,7 @@ El backend puede trabajar tanto con MongoDB Community Server como con MongoDB At
 5. Mantén .env y atlas-credentials.env fuera de GitHub; ambos están excluidos en .gitignore.
 6. En producción, configura la URI, CORS_ORIGIN y secretos independientes en las variables de entorno del servidor. No reutilices las credenciales de desarrollo.
 
-En el entorno de desarrollo actual, la conexión a Atlas fue probada y los datos base se inicializaron en la base easy_locker. La configuración DNS alternativa se utiliza solo porque el resolutor DNS predeterminado de esta red rechaza las consultas SRV; puedes quitar MONGODB_DNS_SERVERS si la aplicación se ejecuta en una red que resuelva Atlas normalmente.
+La conexión a Atlas depende de las credenciales y de la red de cada equipo. `MONGODB_DNS_SERVERS` es opcional y únicamente se necesita cuando el DNS habitual no resuelve los registros SRV de Atlas.
 
 ## Comandos
 
@@ -80,7 +104,7 @@ npm run test:crud # CRUD de las diez colecciones, validaciones y permisos
 - [Diseño técnico y manual de usuario (PDF)](docs/DISENO-TECNICO-Y-MANUAL.pdf): 21 páginas con arquitectura, colecciones, endpoints, instrucciones y capturas.
 - [Manual editable en Markdown](docs/DISENO-TECNICO-Y-MANUAL.md).
 - [Capturas de escritorio y móvil](docs/capturas/): nueve pantallas en dos tamaños.
-- [Reporte de migración y rúbrica](REPORTE-MIGRACION-Y-RUBRICA.md).
+- [Reporte de migración y rúbrica](docs/historico/REPORTE-MIGRACION-Y-RUBRICA.md).
 
 **Integrantes del equipo:** pendiente de completar con nombres y matrículas oficiales antes de entregar.
 
@@ -99,7 +123,7 @@ npm run test:crud # CRUD de las diez colecciones, validaciones y permisos
 | pagos | Pagos simulados y su estado |
 | logs_sistema | Registro de actividad, advertencias y errores |
 
-Los modelos están definidos en models.js; las referencias entre colecciones usan ObjectId y ref. La capa de persistencia se concentra en Mongoose, en el backend.
+Los modelos están definidos en `models.js`; las referencias entre colecciones usan ObjectId y ref. La capa de persistencia se concentra en Mongoose, en el backend.
 
 ## Arquitectura y seguridad
 
@@ -153,6 +177,6 @@ resource acepta: roles, facultades, usuarios, edificios, pisos, casilleros, plan
 
 ## Base de datos anterior MySQL
 
-tablas y vistas.sql se conserva como referencia del esquema MySQL anterior. No es un script de inicialización de MongoDB y no debe ejecutarse contra MongoDB. La creación de las colecciones y los datos de arranque de esta versión se realiza mediante models.js y seed.js.
+`docs/historico/tablas y vistas.sql` se conserva como referencia del esquema MySQL anterior. No es un script de inicialización de MongoDB y no debe ejecutarse contra MongoDB. La creación de las colecciones y los datos de arranque de esta versión se realiza mediante models.js y seed.js.
 
 La migración implementa la estructura y los datos maestros de demostración en MongoDB. No se importaron registros transaccionales de una instancia MySQL existente. Si se requiere conservar usuarios, rentas o pagos reales, debe hacerse una importación controlada desde esa instancia antes de publicar la aplicación.

@@ -12,16 +12,13 @@ const cors = require('cors');
 const path = require('path');
 
 const { connectDB } = require('./db');
-const reglas = require('./validaciones');
+const reglas = require('./public/js/validaciones');
 const {
     Rol, Facultad, Usuario, Edificio, Piso, Casillero, Plan,
     Renta, Pago, LogSistema
 } = require('./models');
 
 const app = express();
-console.log("ARCHIVO EJECUTADO:", __filename);
-console.log("CARPETA:", process.cwd());
-console.log("PROCESO:", process.pid);
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
@@ -147,7 +144,6 @@ const requireAdmin = [
 ];
 
 function addMonthsClamped(date, months) {
-    // Si alguien paga un 31, el vencimiento cae el último día del mes corto.
     const result = new Date(date);
     const originalDay = result.getUTCDate();
     result.setUTCDate(1);
@@ -534,9 +530,6 @@ app.post('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
     if (!plan) return fail(res, 404, 'El plan no existe o no está disponible.');
     const maxSlots = plan.duracion_unidad === 'semestre' ? 2 : 1;
     if (lockerIds.length > maxSlots) return fail(res, 400, 'Este plan permite solamente ' + maxSlots + ' casillero(s).');
-
-    // Cuenta cada casillero comprometido, incluso los pendientes de pago.
-    // Se verifica en el backend, no solo en los botones del navegador.
     const ocupados = await countUserLockers(req.userId);
     const disponibles = Math.max(0, 4 - ocupados);
     if (lockerIds.length > disponibles) {
@@ -611,8 +604,6 @@ app.get('/api/mi-acceso', requireAuth, asyncRoute(async (req, res) => {
     res.json({ activo: true, codigos, ...codigos[0],
         nota: 'Códigos de acceso asociados a tus rentas activas.' });
 }));
-
-// Avisos visibles al entrar en la aplicación; NO envía notificaciones push ni correos.
 app.get('/api/avisos', requireAuth, asyncRoute(async (req, res) => {
     await expireRents();
     const now = Date.now();
@@ -638,7 +629,6 @@ app.get('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
-    // Solo confirma una simulación: jamás recibimos número, vencimiento ni CVC.
     if (Object.keys(req.body || {}).length > 0) {
         return fail(res, 400, 'Este formulario no admite datos bancarios en la solicitud.');
     }
@@ -726,8 +716,6 @@ app.post('/api/rentas/:id/cancelar', requireAuth, asyncRoute(async (req, res) =>
     });
     res.json({ mensaje: 'Reserva cancelada.' });
 }));
-
-// Semestral: un reemplazo de UN casillero por periodo móvil de 7 días.
 app.post('/api/rentas/:id/cambiar-casillero', requireAuth, asyncRoute(async (req, res) => {
     await expireRents();
     if (!validId(req.params.id) || !validId(req.body.casilleroAnteriorId) || !validId(req.body.casilleroNuevoId)) {
@@ -1185,18 +1173,10 @@ app.delete('/api/admin/:resource/:id', requireAdmin, asyncRoute(async (req, res)
     res.json({ mensaje: 'Registro eliminado correctamente.' });
 }));
 
-app.use((req, res, next) => {
-    let decoded = req.path;
-    try { decoded = decodeURIComponent(req.path); } catch { return res.sendStatus(400); }
-    if (/(^|\/)\.|\.env|\.sql$|\.json$|\.md$|\.map$/i.test(decoded) ||
-        /^\/(?:logs|tests|node_modules|docs)(?:\/|$)/i.test(decoded) ||
-        ['/server.js', '/db.js', '/models.js', '/seed.js'].includes(decoded)) {
-        return res.sendStatus(404);
-    }
-    next();
-});
-
-app.use(express.static(path.join(__dirname), { index: 'index.html' }));
+app.use(express.static(path.join(__dirname, 'public'), {
+    index: 'index.html',
+    dotfiles: 'deny'
+}));
 
 app.use((req, res) => fail(res, 404, 'Ruta no encontrada.'));
 

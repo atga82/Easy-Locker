@@ -1,4 +1,3 @@
-// Validaciones de campos de usuario y formato del formulario de pago.
 const EasyLockerValidaciones = (() => {
     const limpiar = value => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
     const nombreValido = (value, maximo = 80) => {
@@ -22,13 +21,10 @@ const EasyLockerValidaciones = (() => {
         }
         return '';
     }
-
-    // La comprobación de formato no verifica la existencia ni disponibilidad de una tarjeta.
     function numeroTarjetaValido(value) {
         if (typeof value !== 'string') return false;
         const digits = value.replace(/\s/g, '');
         if (!/^\d{16}$/.test(digits)) return false;
-        // Luhn por sí solo aceptaría secuencias como 0000000000000000.
         if (digits.startsWith('0') || /^(\d)\1{15}$/.test(digits)) return false;
         let suma = 0;
         for (let i = digits.length - 1, alterno = false; i >= 0; i--, alterno = !alterno) {

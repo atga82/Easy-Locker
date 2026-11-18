@@ -1,7 +1,5 @@
 require('dotenv').config();
 const dns = require('dns');
-
-// Atlas usa registros SRV; permite definir resolutores alternativos si el DNS local los rechaza.
 const dnsServers = String(process.env.MONGODB_DNS_SERVERS || '')
     .split(',')
     .map(server => server.trim())

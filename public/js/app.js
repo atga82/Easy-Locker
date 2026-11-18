@@ -1,4 +1,3 @@
-// Easy Locker: el frontend solo consume la API; nunca se conecta directamente a MongoDB.
 const $ = id => document.getElementById(id);
 const message = (id, value) => { const element = $(id); if (element) element.textContent = value; };
 const text = (id, value) => { if ($(id)) $(id).textContent = value ?? '—'; };
@@ -212,7 +211,6 @@ async function cargarAcceso() {
             item.append(title, code, expiration);
             list.appendChild(item);
         });
-        // Ocultamos el código antiguo porque la lista ya muestra TODOS los códigos.
         const oldCard = section.querySelector('.codigo-visual');
         if (oldCard) oldCard.hidden = codigos.length > 0;
     } catch (error) {
@@ -284,8 +282,6 @@ async function setupCuenta() {
     } catch {}
     await cargarAcceso();
 }
-
-// El usuario puede seleccionar hasta dos casilleros; el servidor valida el límite real según el plan.
 async function setupCasilleros() {
     const faculty = $('facultadCasillero');
     const building = $('edificio');
@@ -307,8 +303,6 @@ async function setupCasilleros() {
         changeNotice.hidden = false;
         $('continuarCasillero').textContent = 'Confirmar cambio de casillero';
     }
-    // Al completar un semestral NO se compra otro plan ni se paga de nuevo.
-    // Mostramos un aviso propio para que cualquier error del servidor sea visible.
     if (completingSemester) {
         const notice = $('avisoAgregarSemestral');
         if (notice) notice.hidden = false;
