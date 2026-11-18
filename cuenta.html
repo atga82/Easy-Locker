@@ -19,9 +19,8 @@
 
         <nav class="navegacion" id="navegacion">
             <a href="index.html">Inicio</a>
-             <a href="Datos.html">Datos personales</a>
             <a href="casilleros.html">Casilleros</a>
-             <a href="historial.html">Historial</a>
+             <a href="Historial.html">Historial</a>
             <a href="planes.html">Planes</a>
             <a class="activo" href="cuenta.html">Mi cuenta</a>
         </nav>
@@ -30,7 +29,7 @@
     <main class="seccion">
         <div class="seccion-titulo">
             <h1>Mi cuenta</h1>
-            <p>Consulta tus datos y el resumen de tu solicitud.</p>
+            <p>Consulta tus rentas, tu código de acceso de demostración y edita tus datos desde esta misma página.</p>
         </div>
 
         <section class="perfil">
@@ -62,6 +61,21 @@
             <a class="boton boton-principal" href="casilleros.html">Elegir casillero</a>
             <a class="boton boton-secundario" href="planes.html">Ver planes</a>
         </div>
+
+        <section class="codigo-acceso" style="margin-top:28px"><div><p class="etiqueta">MI ACCESO</p><h2>Código del casillero</h2><p id="estadoAcceso">Se mostrará al confirmar el pago simulado de una renta activa.</p></div><div class="codigo-visual"><span>Código</span><strong id="codigoAcceso">------</strong></div></section>
+        <section class="formulario-perfil"><h2>Mis datos personales</h2><p>Actualiza tus datos aquí, sin salir de Mi cuenta.</p>
+          <form id="formDatos" class="formulario" style="margin-top:20px">
+            <div class="campo"><label for="datosNombre">Nombre</label><input id="datosNombre" required></div>
+            <div class="campo"><label for="datosApellidos">Apellidos</label><input id="datosApellidos" required></div>
+            <div class="campo"><label for="datosMatricula">Matrícula</label><input id="datosMatricula" required></div>
+            <div class="campo"><label for="datosCorreo">Correo institucional</label><input id="datosCorreo" type="email" required></div>
+            <div class="campo"><label for="datosFacultad">Facultad</label><select id="datosFacultad"><option>Facultad de Ciencias Físico-Matemáticas</option><option>Facultad de Ingeniería Mecánica y Eléctrica</option><option>Facultad de Artes Visuales</option></select></div>
+            <div class="campo"><label for="datosContrasena">Nueva contraseña (opcional)</label><input id="datosContrasena" type="password" minlength="8" autocomplete="new-password"></div>
+            <div class="campo"><label for="datosConfirmar">Confirmar nueva contraseña</label><input id="datosConfirmar" type="password" autocomplete="new-password"></div>
+            <div class="acciones"><button type="submit" class="boton boton-principal">Guardar mis datos</button></div>
+            <p id="mensajeDatos" role="status" aria-live="polite"></p>
+          </form>
+        </section>
     </main>
 
     <footer class="pie">

@@ -1,423 +1,430 @@
-const botonMenu = document.querySelector("#botonMenu");
-const navegacion = document.querySelector("#navegacion");
+// Easy Locker: el frontend solo consume la API; nunca se conecta directamente a MongoDB.
+const $ = id => document.getElementById(id);
+const message = (id, value) => { const element = $(id); if (element) element.textContent = value; };
+const text = (id, value) => { if ($(id)) $(id).textContent = value ?? '—'; };
+const field = id => $(id)?.value?.trim() || '';
+const tokenKey = 'easyLockerToken';
+const urlPage = window.location.pathname.toLowerCase();
+const privatePages = [
+    '/cuenta.html', '/datos.html', '/historial.html', '/pago.html',
+    '/casilleros.html', '/planes.html', '/admin.html'
+];
 
-if (botonMenu && navegacion) {
-    botonMenu.addEventListener("click", () => {
-        navegacion.classList.toggle("abierto");
+let currentUser = null;
+
+async function api(url, options = {}) {
+    const token = sessionStorage.getItem(tokenKey);
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (token) headers.Authorization = 'Bearer ' + token;
+
+    const response = await fetch(url, {
+        credentials: 'same-origin',
+        ...options,
+        headers
+    });
+    const data = await response.json().catch(() => ({ mensaje: 'Respuesta no válida del servidor.' }));
+
+    if (response.status === 401 && token) sessionStorage.removeItem(tokenKey);
+    if (!response.ok) throw new Error(data.mensaje || 'No se pudo completar la operación.');
+    return data;
+}
+
+const send = (url, data, method = 'POST') =>
+    api(url, { method, body: JSON.stringify(data) });
+
+async function getUser() {
+    try {
+        currentUser = await api('/api/yo');
+        return currentUser;
+    } catch {
+        currentUser = null;
+        return null;
+    }
+}
+
+function setupNav() {
+    const button = $('botonMenu');
+    const navigation = $('navegacion');
+    if (button && navigation) {
+        button.addEventListener('click', () => navigation.classList.toggle('abierto'));
+    }
+
+    const menu = navigation || document.querySelector('header');
+    if (!menu || $('navSesion')) return;
+
+    const link = document.createElement('a');
+    link.href = 'login.html';
+    link.id = 'navSesion';
+    link.textContent = 'Iniciar sesión';
+    menu.appendChild(link);
+
+    link.addEventListener('click', async event => {
+        if (!currentUser) return;
+        event.preventDefault();
+        try { await send('/api/logout', {}); } catch {}
+        sessionStorage.removeItem(tokenKey);
+        currentUser = null;
+        location.href = 'login.html';
     });
 }
 
-const formRegistro = document.querySelector("#formRegistro");
+async function init() {
+    setupNav();
+    const user = await getUser();
+    const navLink = $('navSesion');
+    if (navLink) navLink.textContent = user ? 'Cerrar sesión' : 'Iniciar sesión';
 
-if (formRegistro) {
-    formRegistro.addEventListener("submit", (evento) => {
-        evento.preventDefault();
-
-        const nombre = document.querySelector("#nombre").value.trim();
-        const apellidos = document.querySelector("#apellidos").value.trim();
-        const correo = document.querySelector("#correo").value.trim();
-        const facultad = document.querySelector("#facultad").value;
-        const contrasena = document.querySelector("#contrasena").value;
-        const confirmar = document.querySelector("#confirmar").value;
-        const mensaje = document.querySelector("#mensajeRegistro");
-        const matricula = document.querySelector("#matricula").value.trim();
-
-        if (contrasena !== confirmar) {
-            mensaje.textContent = "Las contraseñas no coinciden.";
-            return;
-        }
-
-        localStorage.setItem("easyLockerUsuario", JSON.stringify({
-            nombre,
-            apellidos,
-            matricula,
-            correo,
-            facultad,
-            contrasena
-        }));
-
-       mensaje.textContent = "Registro completado correctamente. Redirigiendo al inicio de sesión...";
-
-        setTimeout(() => {
-            window.location.href = "login.html";
-        }, 1500);
-    });
-}
-
-const pisoSelect = document.querySelector("#piso");
-const edificioSelect = document.querySelector("#edificio");
-const filasCasilleros = document.querySelector("#filasCasilleros");
-const tituloPiso = document.querySelector("#tituloPiso");
-const casilleroSeleccionado = document.querySelector("#casilleroSeleccionado");
-const continuarCasillero = document.querySelector("#continuarCasillero");
-
-const ocupadosPorPiso = {
-    1: [4, 7, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 26, 27, 28, 29, 30, 31],
-    2: [3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20, 21, 22, 27, 28, 29],
-    3: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18, 19, 20, 21, 22, 23]
-};
-
-let seleccionActual = null;
-
-function crearMapa() {
-    if (!pisoSelect || !edificioSelect || !filasCasilleros) {
+    if (privatePages.includes(urlPage) && !user) {
+        location.href = 'login.html?volver=' + encodeURIComponent(location.pathname);
+        return;
+    }
+    if (urlPage === '/admin.html' && user.rol !== 'administrador') {
+        location.href = 'cuenta.html';
         return;
     }
 
-    const piso = Number(pisoSelect.value);
-    const edificio = edificioSelect.value;
+    if ($('formRegistro')) setupRegistro();
+    if ($('formLogin')) setupLogin();
+    if ($('cuentaNombre')) setupCuenta();
+    if ($('filasCasilleros')) setupCasilleros();
+    if (document.querySelector('.boton-plan')) setupPlanes();
+    if ($('formPago')) setupPago();
+    if ($('tablaHistorial')) setupHistorial();
+    if ($('adminResumen')) setupAdmin();
+}
 
-    tituloPiso.textContent = `${edificio} · Piso ${piso}`;
-    filasCasilleros.innerHTML = "";
+function setupRegistro() {
+    $('formRegistro').addEventListener('submit', async event => {
+        event.preventDefault();
+        const data = {
+            nombre: field('nombre'),
+            apellidos: field('apellidos'),
+            matricula: field('matricula'),
+            correo: field('correo'),
+            facultad: field('facultad'),
+            contrasena: $('contrasena').value
+        };
+        if (data.contrasena !== $('confirmar').value) {
+            return message('mensajeRegistro', 'Las contraseñas no coinciden.');
+        }
+        try {
+            const result = await send('/api/registro', data);
+            message('mensajeRegistro', result.mensaje);
+            setTimeout(() => location.href = 'login.html', 1000);
+        } catch (error) {
+            message('mensajeRegistro', error.message);
+        }
+    });
+}
 
-    for (let fila = 1; fila <= 4; fila += 1) {
-        const filaElemento = document.createElement("div");
-        const numeroIzquierdo = document.createElement("span");
-        const numeroDerecho = document.createElement("span");
+function setupLogin() {
+    $('formLogin').addEventListener('submit', async event => {
+        event.preventDefault();
+        try {
+            const result = await send('/api/login', {
+                correo: field('loginCorreo'),
+                contrasena: $('loginContrasena').value
+            });
+            sessionStorage.setItem(tokenKey, result.token);
+            message('mensajeLogin', '¡Bienvenido!');
+            const back = new URLSearchParams(location.search).get('volver');
+            location.href = back && back.startsWith('/') && !back.startsWith('//')
+                ? back
+                : 'cuenta.html';
+        } catch (error) {
+            message('mensajeLogin', error.message);
+        }
+    });
+}
 
-        filaElemento.className = "fila-casilleros";
-        numeroIzquierdo.className = "numero-fila";
-        numeroDerecho.className = "numero-fila";
-        numeroIzquierdo.textContent = fila;
-        numeroDerecho.textContent = fila;
+async function cargarAcceso() {
+    try {
+        const result = await api('/api/mi-acceso');
+        text('codigoAcceso', result.activo ? result.codigo : '------');
+        text(
+            'estadoAcceso',
+            result.activo
+                ? result.edificio + ' · Piso ' + result.piso + ' · Casillero ' + result.numero +
+                  '. Código de demostración (no abre una cerradura física).'
+                : result.mensaje
+        );
+    } catch (error) {
+        text('estadoAcceso', error.message);
+    }
+}
 
-        filaElemento.appendChild(numeroIzquierdo);
+function setupDatos() {
+    const user = currentUser;
+    for (const [id, key] of [
+        ['datosNombre', 'nombre'],
+        ['datosApellidos', 'apellidos'],
+        ['datosMatricula', 'matricula'],
+        ['datosCorreo', 'correo'],
+        ['datosFacultad', 'facultad']
+    ]) {
+        if ($(id)) $(id).value = user[key] || '';
+    }
 
-        for (let columna = 1; columna <= 12; columna += 1) {
-            const numero = (fila - 1) * 12 + columna;
-            const casillero = document.createElement("button");
+    $('formDatos').addEventListener('submit', async event => {
+        event.preventDefault();
+        const password = $('datosContrasena')?.value || '';
+        if (password !== ($('datosConfirmar')?.value || '')) {
+            return message('mensajeDatos', 'Las contraseñas no coinciden.');
+        }
+        try {
+            await send('/api/yo', {
+                nombre: field('datosNombre'),
+                apellidos: field('datosApellidos'),
+                matricula: field('datosMatricula'),
+                correo: field('datosCorreo'),
+                facultad: field('datosFacultad'),
+                contrasena: password
+            }, 'PUT');
+            message('mensajeDatos', 'Datos actualizados.');
+            await getUser();
+            text('cuentaNombre', currentUser.nombre + ' ' + currentUser.apellidos);
+            text('cuentaCorreo', currentUser.correo);
+            text('cuentaFacultad', currentUser.facultad);
+            if ($('datosContrasena')) $('datosContrasena').value = '';
+            if ($('datosConfirmar')) $('datosConfirmar').value = '';
+        } catch (error) {
+            message('mensajeDatos', error.message);
+        }
+    });
+}
 
-            casillero.type = "button";
-            casillero.className = "casillero";
-            casillero.title = `Casillero ${numero}, piso ${piso}`;
+async function setupCuenta() {
+    text('cuentaNombre', currentUser.nombre + ' ' + currentUser.apellidos);
+    text('cuentaCorreo', currentUser.correo);
+    text('cuentaFacultad', currentUser.facultad);
+    if ($('formDatos')) setupDatos();
 
-            if (ocupadosPorPiso[piso].includes(numero)) {
-                casillero.classList.add("ocupado");
-                casillero.disabled = true;
-            } else {
-                casillero.addEventListener("click", () => {
-                    document.querySelectorAll(".casillero.seleccionado").forEach((elemento) => {
-                        elemento.classList.remove("seleccionado");
-                    });
+    try {
+        const rents = await api('/api/rentas');
+        const active = rents.find(rent => ['activa', 'pendiente_pago'].includes(rent.estado));
+        if (active) {
+            text(
+                'cuentaCasillero',
+                active.edificio + ' · Piso ' + active.piso + ' · #' + active.numero + ' (' + active.estado + ')'
+            );
+            text('cuentaPlan', active.plan);
+        }
+    } catch {}
+    await cargarAcceso();
+}
 
-                    casillero.classList.add("seleccionado");
+let selectedLocker = null;
 
-                    seleccionActual = {
-                        edificio,
-                        piso,
-                        fila,
-                        columna,
-                        numero
-                    };
+async function setupCasilleros() {
+    const faculty = $('facultadCasillero');
+    const building = $('edificio');
+    const floor = $('piso');
 
-                    const texto = `${edificio} · Piso ${piso} · Casillero ${numero}`;
+    if (currentUser.facultad && Array.from(faculty.options).some(option => option.value === currentUser.facultad)) {
+        faculty.value = currentUser.facultad;
+    }
 
-                    casilleroSeleccionado.textContent = texto;
-                    localStorage.setItem("easyLockerCasillero", texto);
-                    
-                    const facultadCasillero =
-                    document.querySelector("#facultadCasillero");
+    const load = async () => {
+        selectedLocker = null;
+        sessionStorage.removeItem('easyLockerCasilleroId');
+        text('casilleroSeleccionado', 'Ninguno');
+        const title = building.value + ' · Piso ' + floor.value;
+        text('tituloPiso', title);
+        const container = $('filasCasilleros');
+        container.replaceChildren();
 
-                if (facultadCasillero) {
-
-                    localStorage.setItem(
-                        "easyLockerFacultadCasillero",
-                        facultadCasillero.value
-                    );
-
-                }
-                });
+        try {
+            const query = '?facultad=' + encodeURIComponent(faculty.value) +
+                '&edificio=' + encodeURIComponent(building.value) +
+                '&piso=' + encodeURIComponent(floor.value);
+            const rows = await api('/api/casilleros' + query);
+            if (!rows.length) {
+                container.textContent = 'No hay casilleros para esta ubicación.';
+                return;
             }
 
-            filaElemento.appendChild(casillero);
-        }
+            const columns = 6;
+            for (let index = 0; index < rows.length; index += columns) {
+                const row = document.createElement('div');
+                row.className = 'fila-casilleros';
+                const label = document.createElement('span');
+                label.className = 'numero-fila';
+                label.textContent = 'Fila ' + (Math.floor(index / columns) + 1);
+                row.appendChild(label);
 
-        filaElemento.appendChild(numeroDerecho);
-        filasCasilleros.appendChild(filaElemento);
-    }
+                rows.slice(index, index + columns).forEach(locker => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'casillero';
+                    button.innerHTML =
+                        '<span class="casillero-numero">' + Number(locker.numero) +
+                        '</span><span class="casillero-puerta" aria-hidden="true"></span>';
+                    button.setAttribute('aria-label', 'Casillero ' + locker.numero + ', ' + locker.estado);
+                    button.title = 'Casillero ' + locker.numero + ': ' + locker.estado;
+                    button.disabled = locker.estado !== 'disponible';
+                    if (button.disabled) button.classList.add('ocupado');
+
+                    button.addEventListener('click', () => {
+                        container.querySelectorAll('.seleccionado').forEach(element =>
+                            element.classList.remove('seleccionado')
+                        );
+                        button.classList.add('seleccionado');
+                        selectedLocker = locker;
+                        sessionStorage.setItem('easyLockerCasilleroId', String(locker.id));
+                        text('casilleroSeleccionado', title + ' · Casillero ' + locker.numero);
+                        text(
+                            'estadoAcceso',
+                            'Casillero seleccionado. El código de demostración se habilita después de confirmar el pago.'
+                        );
+                    });
+                    row.appendChild(button);
+                });
+                container.appendChild(row);
+            }
+        } catch (error) {
+            container.textContent = error.message;
+        }
+    };
+
+    [faculty, building, floor].forEach(element => element.addEventListener('change', load));
+    $('continuarCasillero').addEventListener('click', event => {
+        if (!selectedLocker) {
+            event.preventDefault();
+            text('casilleroSeleccionado', 'Primero selecciona un casillero disponible.');
+        }
+    });
+    await load();
+    await cargarAcceso();
 }
 
-if (pisoSelect && edificioSelect) {
-    pisoSelect.addEventListener("change", crearMapa);
-    edificioSelect.addEventListener("change", crearMapa);
-    crearMapa();
-}
+function setupPlanes() {
+    document.querySelectorAll('.boton-plan').forEach(button => {
+        button.addEventListener('click', async () => {
+            const lockerId = sessionStorage.getItem('easyLockerCasilleroId');
+            if (!lockerId) return message('mensajePlan', 'Primero selecciona un casillero en el mapa.');
 
-if (continuarCasillero) {
-    continuarCasillero.addEventListener("click", (evento) => {
-        if (!seleccionActual) {
-            evento.preventDefault();
-            alert("Selecciona primero un casillero disponible.");
-        }
+            try {
+                const plans = await api('/api/planes');
+                const plan = plans.find(item => item.nombre === button.dataset.plan);
+                if (!plan) throw new Error('Plan no disponible.');
+                const rent = await send('/api/rentas', {
+                    casilleroId: lockerId,
+                    planId: plan.id
+                });
+                sessionStorage.setItem('easyLockerRentaId', String(rent.id));
+                location.href = 'Pago.html';
+            } catch (error) {
+                message('mensajePlan', error.message);
+            }
+        });
     });
 }
 
-document.querySelectorAll(".boton-plan").forEach((boton) => {
-    boton.addEventListener("click", () => {
-        const plan = boton.dataset.plan;
-        const precio = boton.dataset.precio;
-        const casillero =
-            localStorage.getItem("easyLockerCasillero");
-        const facultad =
-            localStorage.getItem(
-                "easyLockerFacultadCasillero"
-            );
-        localStorage.setItem(
-            "easyLockerPlan",
-            plan
+async function setupPago() {
+    const rentId = sessionStorage.getItem('easyLockerRentaId');
+    try {
+        const rents = await api('/api/rentas');
+        const rent = rents.find(item => item.id === rentId && item.estado === 'pendiente_pago');
+        if (!rent) {
+            message('mensajePago', 'No hay reserva pendiente. Regresa a casilleros.');
+            $('formPago').querySelector('button[type=submit]').disabled = true;
+            return;
+        }
+        text('pagoPlan', rent.plan);
+        text('pagoPrecio', '$' + Number(rent.precio_total).toFixed(2) + ' MXN');
+        text(
+            'pagoUbicacion',
+            rent.facultad + ' · ' + rent.edificio + ' · Piso ' + rent.piso + ' · #' + rent.numero
         );
-        localStorage.setItem(
-            "easyLockerPrecio",
-            precio
-        );
 
-
-        if (casillero) {
-
-            const historial = JSON.parse(
-                localStorage.getItem(
-                    "easyLockerHistorial"
-                ) || "[]"
-            );
-
-
-            historial.push({
-                facultad:
-                    facultad || "Sin seleccionar",
-                casillero,
-                plan,
-                estado: "Activa"
-
-            });
-
-            localStorage.setItem(
-                "easyLockerHistorial",
-                JSON.stringify(historial)
-            );
-
-        }
-        window.location.href = "pago.html";
-
-    });
-
-});
-
-const usuarioGuardado = JSON.parse(localStorage.getItem("easyLockerUsuario") || "null");
-const casilleroGuardado = localStorage.getItem("easyLockerCasillero");
-const planGuardado = localStorage.getItem("easyLockerPlan");
-
-if (usuarioGuardado) {
-    const cuentaNombre = document.querySelector("#cuentaNombre");
-    const cuentaCorreo = document.querySelector("#cuentaCorreo");
-    const cuentaFacultad = document.querySelector("#cuentaFacultad");
-
-    if (cuentaNombre) {
-        cuentaNombre.textContent =
-        `${usuarioGuardado.nombre} ${usuarioGuardado.apellidos}`;
-    }
-
-    if (cuentaCorreo) {
-        cuentaCorreo.textContent = usuarioGuardado.correo;
-    }
-
-    if (cuentaFacultad) {
-        cuentaFacultad.textContent = usuarioGuardado.facultad;
+        $('formPago').addEventListener('submit', async event => {
+            event.preventDefault();
+            try {
+                const result = await send('/api/rentas/' + rentId + '/pagar', {});
+                message('mensajePago', result.mensaje);
+                sessionStorage.removeItem('easyLockerRentaId');
+                setTimeout(() => location.href = 'Historial.html', 1100);
+            } catch (error) {
+                message('mensajePago', error.message);
+            }
+        });
+    } catch (error) {
+        message('mensajePago', error.message);
     }
 }
 
-if (casilleroGuardado) {
-    const cuentaCasillero = document.querySelector("#cuentaCasillero");
+async function setupHistorial() {
+    try {
+        const rents = await api('/api/rentas');
+        text('cantidadRentas', rents.length);
+        const latest = rents[0];
+        text('rentaActual', latest ? latest.plan + ' · ' + latest.estado : 'Sin renta');
+        text('historialFacultad', latest?.facultad || 'Sin seleccionar');
 
-    if (cuentaCasillero) {
-        cuentaCasillero.textContent = casilleroGuardado;
-    }
-}
-
-if (planGuardado) {
-    const cuentaPlan = document.querySelector("#cuentaPlan");
-
-    if (cuentaPlan) {
-        cuentaPlan.textContent = planGuardado;
-    }
-}
-
-const formLogin = document.querySelector("#formLogin");
-
-if (formLogin) {
-    formLogin.addEventListener("submit", (evento) => {
-        evento.preventDefault();
-
-        const correo = document.querySelector("#loginCorreo").value.trim();
-        const mensaje = document.querySelector("#mensajeLogin");
-
-        mensaje.textContent = `Inicio de sesión de demostración para ${correo}.`;
-
-        setTimeout(() => {
-            window.location.href = "index.html";
-        }, 1200);
-    });
-}
-
-
-const formDatos = document.querySelector("#formDatos");
-if (formDatos) {
-    const usuario = JSON.parse(
-        localStorage.getItem("easyLockerUsuario") || "null"
-    );
-    const nombre = document.querySelector("#datosNombre");
-    const apellidos = document.querySelector("#datosApellidos");
-    const matricula = document.querySelector("#datosMatricula");
-    const correo = document.querySelector("#datosCorreo");
-    const facultad = document.querySelector("#datosFacultad");
-    const contrasena = document.querySelector("#datosContrasena");
-    const confirmar = document.querySelector("#datosConfirmar");
-    const mensaje = document.querySelector("#mensajeDatos");
-
-    if (usuario) {
-        nombre.value = usuario.nombre || "";
-        apellidos.value = usuario.apellidos || "";
-        matricula.value = usuario.matricula || "";
-        correo.value = usuario.correo || "";
-        facultad.value = usuario.facultad || "";
-        contrasena.value = usuario.contrasena || "";
-        confirmar.value = usuario.contrasena || "";
-
-    }
-    formDatos.addEventListener("submit", (evento) => {
-        evento.preventDefault();
-
-        if (contrasena.value !== confirmar.value) {
-            mensaje.textContent =
-                "Las contraseñas no coinciden.";
+        const body = $('tablaHistorial');
+        body.replaceChildren();
+        if (!rents.length) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="5">Todavía no hay rentas.</td>';
+            body.appendChild(row);
             return;
         }
 
-        const datosActualizados = {
-            nombre: nombre.value.trim(),
-            apellidos: apellidos.value.trim(),
-            matricula: matricula.value.trim(),
-            correo: correo.value.trim(),
-            facultad: facultad.value,
-            contrasena: contrasena.value
-        };
+        rents.forEach(rent => {
+            const row = document.createElement('tr');
+            [
+                rent.facultad,
+                rent.edificio + ', piso ' + rent.piso + ', #' + rent.numero,
+                rent.plan,
+                rent.estado
+            ].forEach(value => {
+                const cell = document.createElement('td');
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
 
-
-        localStorage.setItem(
-            "easyLockerUsuario",
-            JSON.stringify(datosActualizados)
-        );
-
-
-        mensaje.textContent =
-            "Datos personales actualizados correctamente.";
-    });
-}
-
-
-const formPago = document.querySelector("#formPago");
-if (formPago) {
-
-    const plan = localStorage.getItem("easyLockerPlan");
-    const precio = localStorage.getItem("easyLockerPrecio");
-    const pagoPlan = document.querySelector("#pagoPlan");
-    const pagoPrecio = document.querySelector("#pagoPrecio");
-    const numeroTarjeta =
-        document.querySelector("#numeroTarjeta");
-    const vencimiento =
-        document.querySelector("#vencimiento");
-    const cvv =
-        document.querySelector("#cvv");
-    const mensaje =
-        document.querySelector("#mensajePago");
-
-
-    if (plan) {
-        pagoPlan.textContent = plan;
-    }
-
-    if (precio) {
-        pagoPrecio.textContent = precio;
-    }
-
-    numeroTarjeta.addEventListener("input", () => {
-        let numero =
-            numeroTarjeta.value.replace(/\D/g, "");
-        numero = numero.substring(0, 16);
-
-        numeroTarjeta.value =
-            numero.replace(/(.{4})/g, "$1 ").trim();
-    });
-
-    vencimiento.addEventListener("input", () => {
-        let valor =
-            vencimiento.value.replace(/\D/g, "");
-        valor = valor.substring(0, 4);
-        if (valor.length > 2) {
-            valor =
-                valor.substring(0, 2) +
-                "/" +
-                valor.substring(2);
-
-        }
-
-        vencimiento.value = valor;
-    });
-
-    cvv.addEventListener("input", () => {
-        cvv.value =
-            cvv.value.replace(/\D/g, "").substring(0, 4);
-
-    });
-
-    formPago.addEventListener("submit", (evento) => {
-        evento.preventDefault();
-        mensaje.textContent =
-            "Pago de demostración realizado correctamente. Redirigiendo...";
-        setTimeout(() => {
-            window.location.href = "index.html";
-
-        }, 1500);
-
-    });
-
-}
-
-const tablaHistorial =
-    document.querySelector("#tablaHistorial");
-if (tablaHistorial) {
-    const historial = JSON.parse(
-        localStorage.getItem(
-            "easyLockerHistorial"
-        ) || "[]"
-    );
-
-    const cantidadRentas =
-        document.querySelector("#cantidadRentas");
-    const rentaActual =
-        document.querySelector("#rentaActual");
-    const historialFacultad =
-        document.querySelector("#historialFacultad");
-    cantidadRentas.textContent =
-        historial.length;
-
-
-    if (historial.length > 0) {
-        tablaHistorial.innerHTML = "";
-        historial.forEach((renta) => {
-            const fila =
-                document.createElement("tr");
-
-            fila.innerHTML = ` <td> ${renta.facultad} </td><td>${renta.casillero}</td><td>${renta.plan}</td><td><span class="estado-activo">${renta.estado}</span></td>`;
-            tablaHistorial.appendChild(fila);
-
+            const actionCell = document.createElement('td');
+            if (rent.estado === 'pendiente_pago') {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = 'Cancelar reserva';
+                button.className = 'boton boton-secundario';
+                button.addEventListener('click', async () => {
+                    try {
+                        await send('/api/rentas/' + rent.id + '/cancelar', {});
+                        await setupHistorial();
+                    } catch (error) {
+                        message('historialMensaje', error.message);
+                    }
+                });
+                actionCell.appendChild(button);
+            } else {
+                actionCell.textContent = '—';
+            }
+            row.appendChild(actionCell);
+            body.appendChild(row);
         });
-
-        const ultimaRenta =
-            historial[historial.length - 1];
-        rentaActual.textContent =
-            ultimaRenta.plan;
-        historialFacultad.textContent =
-            ultimaRenta.facultad;
-
+    } catch (error) {
+        $('tablaHistorial').textContent = error.message;
     }
 }
+
+async function setupAdmin() {
+    try {
+        const data = await api('/api/admin/resumen');
+        text(
+            'adminResumen',
+            'Casilleros: ' + data.total +
+            ' · Disponibles: ' + data.disponibles +
+            ' · Ocupados: ' + data.ocupados +
+            ' · Reservados: ' + data.reservados +
+            ' · Usuarios: ' + data.usuarios +
+            ' · Rentas: ' + data.rentas +
+            ' · Ingresos: $' + Number(data.ingresos || 0).toFixed(2) + ' MXN'
+        );
+    } catch (error) {
+        text('adminResumen', error.message);
+    }
+}
+
+init();
