@@ -22,7 +22,7 @@
             <p class="etiqueta">FORMA DE PAGO</p>
             <h1>Completa tu suscripción</h1>
             <p>
-                Confirma la reserva sin introducir información bancaria.
+                Revisa los detalles de tu reserva y completa los datos solicitados para continuar.
             </p>
         </div>
 
@@ -35,22 +35,49 @@
                     <strong id="pagoPrecio">$0</strong>
                 </div>
                 <p class="aviso-pago">
-                    Esta pantalla forma parte del prototipo.
-                    No se realizará ningún cobro real.
+                    Tu renta se activará cuando confirmes esta operación.
                 </p>
             </section>
 
 
-            <form class="formulario formulario-pago" id="formPago">
-                <h2>Confirmación de reserva</h2>
-                <p id="pagoUbicacion">Cargando ubicación...</p>
-                <p>Pago de demostración: no se solicitan ni procesan datos bancarios reales.</p>
-                <p>La reserva permanece pendiente por 15 minutos. Confirma para activar la renta.</p>
+            <form class="formulario formulario-pago" id="formPago" autocomplete="off">
+                <div class="pago-encabezado campo-completo">
+                    <div>
+                        <p class="etiqueta">FORMA DE PAGO</p>
+                        <h2>Datos de la tarjeta</h2>
+                    </div>
+                    <span class="pago-seguro">Tus datos no se almacenan</span>
+                </div>
+                <div class="tarjeta-simulada campo-completo" aria-label="Representación de una tarjeta">
+                    <div class="tarjeta-simulada-arriba"><span>EASY LOCKER</span><span>ACCESO</span></div>
+                    <div class="tarjeta-chip" aria-hidden="true"></div>
+                    <div class="tarjeta-simulada-numero">••••  ••••  ••••  ••••</div>
+                    <div class="tarjeta-simulada-abajo"><span>TITULAR</span><span>MM/AA</span></div>
+                </div>
+                <p id="pagoUbicacion" class="campo-completo">Cargando ubicación...</p>
+                <p class="pago-info campo-completo">Utiliza el número facilitado <strong>4242 4242 4242 4242</strong>, una fecha futura y el CVC <strong>123</strong>. No introduzcas una tarjeta real: este formulario no realiza cargos bancarios.</p>
+                <div class="campo campo-completo">
+                    <label for="tarjetaTitular">Nombre en la tarjeta</label>
+                    <input id="tarjetaTitular" type="text" placeholder="JUAN PÉREZ" maxlength="80" autocomplete="off" required>
+                </div>
+                <div class="campo campo-completo">
+                    <label for="tarjetaNumero">Número de tarjeta (16 dígitos)</label>
+                    <input id="tarjetaNumero" type="text" placeholder="4242 4242 4242 4242" maxlength="19" inputmode="numeric" autocomplete="off" spellcheck="false" required>
+                </div>
+                <div class="campo">
+                    <label for="tarjetaVencimiento">Vencimiento (MM/AA)</label>
+                    <input id="tarjetaVencimiento" type="text" placeholder="MM/AA" maxlength="5" inputmode="numeric" autocomplete="off" required>
+                </div>
+                <div class="campo">
+                    <label for="tarjetaCvc">CVC (3 dígitos)</label>
+                    <input id="tarjetaCvc" type="password" placeholder="•••" maxlength="3" inputmode="numeric" autocomplete="off" required>
+                </div>
+                <p class="pago-info campo-completo">Tu reserva se mantiene pendiente durante 15 minutos. Los datos ingresados no se guardan ni se transmiten al servidor.</p>
                 <div class="acciones-pago">
                     <a class="boton boton-secundario" href="casilleros.html">Volver</a>
-                    <button class="boton boton-principal" type="submit">Confirmar pago simulado</button>
+                    <button class="boton boton-principal" type="submit">Confirmar reserva</button>
                 </div>
-                <p id="mensajePago" role="status"></p>
+                <p id="mensajePago" class="campo-completo mensaje" role="status" aria-live="polite"></p>
             </form>
         </div>
     </main>
@@ -58,11 +85,12 @@
 
     <footer class="pie">
         <p>
-            Easy Locker · Proyecto académico universitario
+            Easy Locker · Casilleros universitarios
         </p>
     </footer>
 
 
+    <script src="validaciones.js"></script>
     <script src="app.js"></script>
 
 </body>

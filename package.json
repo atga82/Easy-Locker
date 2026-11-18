@@ -8,10 +8,11 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node seed.js",
-    "check": "node --check server.js && node --check models.js && node --check db.js && node --check seed.js && node --check scripts/actualizar-planes.js && node --check app.js && node --check admin.js && node --check tests/smoke-test.js && node --check tests/crud-validation-test.js",
+    "check": "node --check server.js && node --check models.js && node --check db.js && node --check seed.js && node --check scripts/actualizar-planes.js && node --check app.js && node --check validaciones.js && node --check admin.js && node --check tests/smoke-test.js && node --check tests/crud-validation-test.js && node --check tests/validaciones-test.js",
     "test": "node tests/smoke-test.js",
     "test:crud": "node tests/crud-validation-test.js",
-    "planes:update": "node scripts/actualizar-planes.js"
+    "planes:update": "node scripts/actualizar-planes.js",
+    "test:validaciones": "node tests/validaciones-test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

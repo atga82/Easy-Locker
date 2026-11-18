@@ -1,0 +1,22 @@
+// Pruebas sin base de datos ni datos financieros reales.
+const assert = require('node:assert/strict');
+const v = require('../validaciones');
+assert.equal(v.errorAlumno({nombre:'José María',apellidos:'De la Cruz',matricula:'228931',correo:'ejemplo@uanl.edu.mx',contrasena:'Prueba2026'},true),'');
+assert.match(v.errorAlumno({nombre:'Juan1',apellidos:'Pérez',matricula:'228931',correo:'correo@example.com'},false),/nombre/i);
+assert.match(v.errorAlumno({nombre:'Juan',apellidos:'Pérez',matricula:'QA123',correo:'correo@example.com'},false),/matrícula/i);
+assert.equal(v.matriculaValida('000123'),true);
+assert.equal(v.matriculaValida('1234abc'),false);
+assert.equal(v.numeroTarjetaValido('4242 4242 4242 4242'),true); // Número conocido de test, no una tarjeta real.
+assert.equal(v.numeroTarjetaValido('4242 4242 4242 4243'),false);
+assert.equal(v.numeroTarjetaValido('1234567890123456'),false);
+assert.equal(v.numeroTarjetaValido('0000000000000000'),false);
+assert.equal(v.numeroTarjetaValido('1111111111111111'),false);
+assert.equal(v.numeroTarjetaValido('0000 0000 0000 0000'),false);
+assert.equal(v.vencimientoValido('11/26',new Date(2026,10,18)),true);
+assert.equal(v.vencimientoValido('10/26',new Date(2026,10,18)),false);
+assert.equal(v.vencimientoValido('13/30'),false);
+assert.equal(v.cvcValido('123'),true);
+assert.equal(v.cvcValido('12'),false);
+assert.equal(v.cvcValido('1234'),false);
+assert.equal(v.errorTarjeta({titular:'Juan Pérez',numero:'4242 4242 4242 4242',vencimiento:'12/30',cvc:'123'}),'');
+console.log('OK: validaciones de estudiantes y tarjeta ficticia.');

@@ -96,6 +96,13 @@
             <label><input id="aceptaRetiro" type="checkbox"> Confirmo que retiraré mis pertenencias y que los objetos restantes podrán ser gestionados conforme al reglamento de la institución.</label>
             <p id="mensajeCambio" role="status"></p>
         </section>
+        <section id="avisoAgregarSemestral" class="aviso-agregar-semestral" hidden>
+            <h2>Segundo casillero incluido</h2>
+            <p>Tu plan semestral permite dos casilleros sin pagar otra vez.
+               Elige uno disponible y pulsa «Agregar sin costo».
+               El máximo de tu cuenta es de cuatro casilleros activos o pendientes.</p>
+            <p id="mensajeAgregarSemestral" class="mensaje-operacion" role="status" aria-live="polite"></p>
+        </section>
         <div class="resumen">
             <div>
                 <span>Casillero seleccionado</span>
@@ -111,7 +118,7 @@
                 </p>
                 <h2>Acceso al casillero</h2>
                 <p>
-                    <span id="estadoAcceso">El código de demostración estará disponible después de confirmar el pago. No abre una cerradura física.</span>
+                    <span id="estadoAcceso">Tu código de acceso estará disponible después de confirmar la reserva.</span>
                 </p>
             </div>
 
@@ -123,7 +130,7 @@
     </main>
 
     <footer class="pie">
-        <p>Easy Locker · Proyecto académico universitario</p>
+        <p>Easy Locker · Casilleros universitarios</p>
     </footer>
 
     <script src="app.js"></script>

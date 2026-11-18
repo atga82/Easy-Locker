@@ -12,12 +12,16 @@ const cors = require('cors');
 const path = require('path');
 
 const { connectDB } = require('./db');
+const reglas = require('./validaciones');
 const {
     Rol, Facultad, Usuario, Edificio, Piso, Casillero, Plan,
     Renta, Pago, LogSistema
 } = require('./models');
 
 const app = express();
+console.log("ARCHIVO EJECUTADO:", __filename);
+console.log("CARPETA:", process.cwd());
+console.log("PROCESO:", process.pid);
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
@@ -293,9 +297,8 @@ app.post('/api/registro', asyncRoute(async (req, res) => {
     if ([nombre, apellidos, matricula, correo, facultad, contrasena].some(value => !clean(value))) {
         return fail(res, 400, 'Completa todos los campos.');
     }
-    if (!validEmail(correo) || String(contrasena).length < 8) {
-        return fail(res, 400, 'Correo inválido o contraseña menor a 8 caracteres.');
-    }
+    const errorDatos = reglas.errorAlumno({ nombre, apellidos, matricula, correo, contrasena }, true);
+    if (errorDatos) return fail(res, 400, errorDatos);
     const faculty = await Facultad.findOne({ nombre: clean(facultad), activa: true });
     const role = await Rol.findOne({ nombre: 'estudiante' });
     if (!faculty || !role) return fail(res, 400, 'Facultad o rol no disponible.');
@@ -304,8 +307,8 @@ app.post('/api/registro', asyncRoute(async (req, res) => {
     const user = await Usuario.create({
         rol: role._id,
         facultad: faculty._id,
-        nombre: clean(nombre),
-        apellidos: clean(apellidos),
+        nombre: reglas.limpiar(nombre),
+        apellidos: reglas.limpiar(apellidos),
         matricula: clean(matricula),
         correo: email(correo),
         passwordHash
@@ -365,15 +368,13 @@ app.put('/api/yo', requireAuth, asyncRoute(async (req, res) => {
     if ([nombre, apellidos, matricula, correo, facultad].some(value => !clean(value))) {
         return fail(res, 400, 'Completa tus datos.');
     }
-    if (!validEmail(correo)) return fail(res, 400, 'Correo electrónico inválido.');
-    if (contrasena && String(contrasena).length < 8) {
-        return fail(res, 400, 'La nueva contraseña debe tener al menos 8 caracteres.');
-    }
+    const errorDatos = reglas.errorAlumno({ nombre, apellidos, matricula, correo, contrasena }, Boolean(contrasena));
+    if (errorDatos) return fail(res, 400, errorDatos);
     const faculty = await Facultad.findOne({ nombre: clean(facultad), activa: true });
     if (!faculty) return fail(res, 400, 'Facultad inválida.');
     const values = {
-        nombre: clean(nombre),
-        apellidos: clean(apellidos),
+        nombre: reglas.limpiar(nombre),
+        apellidos: reglas.limpiar(apellidos),
         matricula: clean(matricula),
         correo: email(correo),
         facultad: faculty._id
@@ -492,6 +493,7 @@ app.post('/api/rentas/:id/agregar-casillero-semestral', requireAuth, asyncRoute(
 
 
 app.get('/api/planes', requireAuth, asyncRoute(async (req, res) => {
+    await expireRents();
     const plans = await Plan.find({ activo: true }).sort({ precio: 1 }).lean();
 
     const totalLockers = await countUserLockers(req.userId);
@@ -533,6 +535,18 @@ app.post('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
     const maxSlots = plan.duracion_unidad === 'semestre' ? 2 : 1;
     if (lockerIds.length > maxSlots) return fail(res, 400, 'Este plan permite solamente ' + maxSlots + ' casillero(s).');
 
+    // Cuenta cada casillero comprometido, incluso los pendientes de pago.
+    // Se verifica en el backend, no solo en los botones del navegador.
+    const ocupados = await countUserLockers(req.userId);
+    const disponibles = Math.max(0, 4 - ocupados);
+    if (lockerIds.length > disponibles) {
+        return fail(res, 409,
+            disponibles === 0
+                ? 'Ya tienes 4 casilleros ocupados o reservados. Espera a que venza una renta.'
+                : 'Solo puedes agregar ' + disponibles + ' casillero(s) más. El máximo por usuario es 4.'
+        );
+    }
+
     if (plan.duracion_unidad === 'semestre') {
         const semesterPlans = await Plan.find({ duracion_unidad: 'semestre' }).select('_id').lean();
         const existing = await Renta.exists({ usuario: req.userId, plan: { $in: semesterPlans.map(p => p._id) }, estado: { $in: ['activa', 'pendiente_pago'] } });
@@ -562,7 +576,7 @@ app.post('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
         await writeLog({ usuario: req.userId, evento: 'RENTA_CREADA', req,
             mensaje: 'Se creó una reserva pendiente de pago.',
             contexto: { rentaId: String(rent._id), casilleros: reservedIds.map(String) } });
-        return res.status(201).json({ id: String(rent._id), mensaje: 'Reserva creada. Confirma el pago simulado antes de 15 minutos.' });
+        return res.status(201).json({ id: String(rent._id), mensaje: 'Reserva creada. Confirma la operación antes de 15 minutos.' });
     } catch (err) {
         if (reservedIds.length) await Casillero.updateMany(
             { _id: { $in: reservedIds }, estado: 'reservado' },
@@ -595,7 +609,7 @@ app.get('/api/mi-acceso', requireAuth, asyncRoute(async (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (!codigos.length) return res.json({ activo: false, codigos: [], mensaje: 'Todavía no tienes casilleros activos.' });
     res.json({ activo: true, codigos, ...codigos[0],
-        nota: 'Códigos de demostración; no abren cerraduras físicas.' });
+        nota: 'Códigos de acceso asociados a tus rentas activas.' });
 }));
 
 // Avisos visibles al entrar en la aplicación; NO envía notificaciones push ni correos.
@@ -621,25 +635,13 @@ app.get('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
         .sort({ fecha_solicitud: -1 })
         .populate(rentPopulate);
     res.json(await Promise.all(rents.map(rentalView)));
-
-    const activeLockerCount = await countUserLockers(req.userId);
-    const freeSlots = 4 - activeLockerCount;
-
-    if (freeSlots <= 0) {
-        return fail(res, 409, 'Ya alcanzaste el máximo de 4 casilleros activos o pendientes.');
-    }
-
-    if (lockerIds.length > freeSlots) {
-        return fail(
-            res,
-            409,
-            'Solo puedes agregar ' + freeSlots +
-            ' casillero(s) más. El máximo total por usuario es 4.'
-        );
-    }
 }));
 
 app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
+    // Solo confirma una simulación: jamás recibimos número, vencimiento ni CVC.
+    if (Object.keys(req.body || {}).length > 0) {
+        return fail(res, 400, 'Este formulario no admite datos bancarios en la solicitud.');
+    }
     const rentId = req.params.id;
     if (!validId(rentId)) return fail(res, 400, 'Identificador de renta inválido.');
     await expireRents();
@@ -697,10 +699,10 @@ app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
         usuario: req.userId,
         evento: 'PAGO_SIMULADO_APROBADO',
         req,
-        mensaje: 'Se confirmó un pago de demostración.',
+        mensaje: 'Se confirmó la operación de una renta.',
         contexto: { rentaId: rent._id.toString(), monto: rent.precio_total }
     });
-    res.json({ mensaje: 'Pago simulado aprobado. Casillero asignado.' });
+    res.json({ mensaje: 'Reserva confirmada. Casillero asignado.' });
 }));
 
 app.post('/api/rentas/:id/cancelar', requireAuth, asyncRoute(async (req, res) => {
@@ -1210,7 +1212,11 @@ app.use(async (err, req, res, next) => {
         mensaje: err.message || 'Error no identificado.',
         contexto: { status, code: err.code || null }
     });
-    if (err.code === 11000) return fail(res, 409, 'El correo, matrícula o nombre ya está registrado.');
+    if (err.code === 11000) {
+        if (err.keyPattern?.matricula) return fail(res, 409, 'Esta matrícula ya está registrada.');
+        if (err.keyPattern?.correo) return fail(res, 409, 'Este correo electrónico ya está registrado.');
+        return fail(res, 409, 'Ya existe un registro con alguno de esos datos.');
+    }
     if (err.name === 'ValidationError') return fail(res, 400, 'Los datos enviados no cumplen las validaciones: ' + err.message);
     if (err.name === 'CastError') return fail(res, 400, 'Uno de los identificadores o valores enviados no es válido.');
     return fail(res, status, safeMessage);

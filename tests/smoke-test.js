@@ -137,7 +137,7 @@ async function main() {
             body: JSON.stringify({
                 nombre: 'Usuario',
                 apellidos: 'Prueba QA',
-                matricula: 'QA-' + Date.now(),
+                matricula: String(Date.now()).slice(-10),
                 correo: testEmail,
                 facultad: facultyName,
                 contrasena: 'TemporalQA2026!'

@@ -120,6 +120,8 @@ function setupRegistro() {
             facultad: field('facultad'),
             contrasena: $('contrasena').value
         };
+        const errorDatos = window.EasyLockerValidaciones.errorAlumno(data, true);
+        if (errorDatos) return message('mensajeRegistro', errorDatos);
         if (data.contrasena !== $('confirmar').value) {
             return message('mensajeRegistro', 'Las contraseñas no coinciden.');
         }
@@ -183,7 +185,9 @@ async function cargarAcceso() {
         const first = codigos[0];
         text('codigoAcceso', first ? first.codigo : '------');
         text('estadoAcceso', first
-            ? 'Tienes ' + codigos.length + ' casillero(s) activos. Cada casillero tiene su propio código de demostración.'
+            ? (codigos.length === 1
+                ? 'Tienes 1 casillero activo. Consulta tu código de acceso.'
+                : 'Tienes ' + codigos.length + ' casilleros activos. Consulta los códigos de acceso de cada uno.')
             : result.mensaje);
         const section = $('codigoAcceso')?.closest('.codigo-acceso');
         if (!section) return;
@@ -231,6 +235,12 @@ function setupDatos() {
     $('formDatos').addEventListener('submit', async event => {
         event.preventDefault();
         const password = $('datosContrasena')?.value || '';
+        const datos = {
+            nombre: field('datosNombre'), apellidos: field('datosApellidos'),
+            matricula: field('datosMatricula'), correo: field('datosCorreo'), contrasena: password
+        };
+        const errorDatos = window.EasyLockerValidaciones.errorAlumno(datos, Boolean(password));
+        if (errorDatos) return message('mensajeDatos', errorDatos);
         if (password !== ($('datosConfirmar')?.value || '')) {
             return message('mensajeDatos', 'Las contraseñas no coinciden.');
         }
@@ -296,6 +306,13 @@ async function setupCasilleros() {
     if (changing && changeNotice) {
         changeNotice.hidden = false;
         $('continuarCasillero').textContent = 'Confirmar cambio de casillero';
+    }
+    // Al completar un semestral NO se compra otro plan ni se paga de nuevo.
+    // Mostramos un aviso propio para que cualquier error del servidor sea visible.
+    if (completingSemester) {
+        const notice = $('avisoAgregarSemestral');
+        if (notice) notice.hidden = false;
+        $('continuarCasillero').textContent = 'Agregar sin costo';
     }
 
     function updateSelected() {
@@ -406,10 +423,10 @@ async function setupCasilleros() {
                     '/api/rentas/' + encodeURIComponent(semesterToComplete) + '/agregar-casillero-semestral',
                     { casilleroNuevoId: selectedId }
                 );
-                message('mensajeCambio', result.mensaje);
+                message('mensajeAgregarSemestral', result.mensaje);
                 location.href = 'Historial.html';
             } catch (error) {
-                message('mensajeCambio', error.message);
+                message('mensajeAgregarSemestral', error.message);
             }
             return;
         }
@@ -455,6 +472,25 @@ async function setupPlanes() {
 
 async function setupPago() {
     const rentId = sessionStorage.getItem('easyLockerRentaId');
+    const numberInput = $('tarjetaNumero');
+    const expiryInput = $('tarjetaVencimiento');
+    const cvcInput = $('tarjetaCvc');
+    const titularInput = $('tarjetaTitular');
+    if (!numberInput || !expiryInput || !cvcInput || !titularInput) {
+        message('mensajePago', 'No se pudo cargar el formulario de pago.');
+        return;
+    }
+    numberInput.addEventListener('input', () => {
+        const digits = numberInput.value.replace(/\D/g, '').slice(0, 16);
+        numberInput.value = digits.replace(/(.{4})/g, '$1 ').trim();
+    });
+    expiryInput.addEventListener('input', () => {
+        const digits = expiryInput.value.replace(/\D/g, '').slice(0, 4);
+        expiryInput.value = digits.length > 2 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
+    });
+    cvcInput.addEventListener('input', () => {
+        cvcInput.value = cvcInput.value.replace(/\D/g, '').slice(0, 3);
+    });
     try {
         const rents = await api('/api/rentas');
         const rent = rents.find(item => item.id === rentId && item.estado === 'pendiente_pago');
@@ -472,6 +508,16 @@ async function setupPago() {
 
         $('formPago').addEventListener('submit', async event => {
             event.preventDefault();
+            const errorTarjeta = window.EasyLockerValidaciones.errorTarjeta({
+                titular: titularInput.value,
+                numero: numberInput.value,
+                vencimiento: expiryInput.value,
+                cvc: cvcInput.value
+            });
+            if (errorTarjeta) return message('mensajePago', errorTarjeta);
+            $('formPago').reset();
+            const submitButton = $('formPago').querySelector('button[type=submit]');
+            submitButton.disabled = true;
             try {
                 const result = await send('/api/rentas/' + rentId + '/pagar', {});
                 message('mensajePago', result.mensaje);
@@ -479,6 +525,7 @@ async function setupPago() {
                 setTimeout(() => location.href = 'Historial.html', 1100);
             } catch (error) {
                 message('mensajePago', error.message);
+                submitButton.disabled = false;
             }
         });
     } catch (error) {
@@ -502,6 +549,10 @@ async function setupHistorial() {
             body.appendChild(row);
             return;
         }
+
+        const enUso = rents
+            .filter(r => ['activa', 'pendiente_pago'].includes(r.estado))
+            .reduce((total, r) => total + (r.casilleros?.length || 0), 0);
 
         rents.forEach(rent => {
             const row = document.createElement('tr');
@@ -535,15 +586,24 @@ async function setupHistorial() {
                 if (rent.casilleros.length === 1) {
                     const addButton = document.createElement('button');
                     addButton.type = 'button';
-                    addButton.textContent = 'Agregar segundo incluido';
                     addButton.className = 'boton boton-principal admin-small-button';
-                    addButton.addEventListener('click', () => {
-                        location.href = 'casilleros.html?agregarSemestral=' + encodeURIComponent(rent.id);
-                    });
+                    if (enUso >= 4) {
+                        addButton.textContent = 'Sin cupo (4 de 4)';
+                        addButton.title = 'Podrás agregar tu segundo casillero gratis cuando venza otra renta.';
+                        addButton.disabled = true;
+                    } else {
+                        addButton.textContent = 'Agregar segundo incluido';
+                        addButton.addEventListener('click', () => {
+                            location.href = 'casilleros.html?agregarSemestral=' + encodeURIComponent(rent.id);
+                        });
+                    }
                     actionCell.appendChild(addButton);
                 }
                 if (!rent.puede_cambiar) {
-                    actionCell.textContent = 'Próximo cambio: ' + new Date(rent.proximo_cambio).toLocaleString('es-MX');
+                    const next = document.createElement('small');
+                    next.className = 'detalle-cambio';
+                    next.textContent = 'Próximo cambio: ' + new Date(rent.proximo_cambio).toLocaleString('es-MX');
+                    actionCell.appendChild(next);
                 } else {
                     rent.casilleros.forEach(locker => {
                         const button = document.createElement('button');

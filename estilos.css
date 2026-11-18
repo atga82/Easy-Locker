@@ -769,6 +769,25 @@ h2 {
 }
 
 
+/* Campos y tarjeta de la página de pago. */
+.formulario-pago { gap: 16px 20px; }
+.pago-encabezado { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.pago-encabezado h2 { margin: 0; }
+.pago-seguro { border: 1px solid #4c8867; background: #193c32; color: #a9edc0; border-radius: 30px; padding: 7px 12px; font-size: .82rem; font-weight: 700; }
+.tarjeta-simulada { position: relative; width: min(100%, 430px); min-height: 230px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 20px; padding: 23px 26px; background: linear-gradient(125deg, #1a4568, #0e253c 55%, #182f4b); border: 1px solid #5783a4; box-shadow: 0 18px 35px rgba(0, 0, 0, .22); overflow: hidden; }
+.tarjeta-simulada::after { content: ''; position: absolute; width: 220px; height: 220px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; right: -68px; top: -90px; pointer-events: none; }
+.tarjeta-simulada-arriba, .tarjeta-simulada-abajo { display: flex; justify-content: space-between; gap: 14px; align-items: center; font-weight: 800; letter-spacing: 1.2px; font-size: .82rem; }
+.tarjeta-simulada-arriba span:last-child { color: var(--naranja); }
+.tarjeta-chip { width: 48px; height: 34px; border-radius: 7px; background: linear-gradient(135deg, #ffe6a5, #b68b43); border: 1px solid #fce6b7; }
+.tarjeta-simulada-numero { white-space: nowrap; font-size: clamp(1rem, 2.2vw, 1.5rem); letter-spacing: .12em; font-weight: 700; color: #eef5fc; }
+.tarjeta-simulada-abajo { color: #b7d4ea; font-weight: 600; }
+.pago-info { padding: 13px 15px; background: #0c2134; border: 1px solid #34536d; border-radius: 12px; color: #cadbeb; font-size: .89rem; line-height: 1.55; }
+.pago-info strong { color: var(--naranja); }
+.formulario-pago .campo input:focus-visible { outline: 2px solid var(--naranja); outline-offset: 2px; }
+.formulario-pago .acciones-pago { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.formulario-pago #mensajePago { text-align: left; }
+@media (max-width: 600px) { .tarjeta-simulada { min-height: 190px; padding: 18px; } .formulario-pago .acciones-pago .boton { width: 100%; } }
+
 .pagina-pago {
     max-width: 1100px;
 }
@@ -1160,10 +1179,25 @@ h2 {
     color: var(--secundario);
     font-size: .95rem;
 }
-.tarjeta-codigo small { color: #536778; }
-.aviso-cambio, .avisos-renta, .nota-politicas { border: 1px solid #e9c38d; background: #fff9e9; padding: 18px; border-radius: 12px; margin: 16px auto; }
+/* Los avisos usan la misma paleta oscura que las pantallas originales. */
+.aviso-cambio, .aviso-agregar-semestral, .avisos-renta, .nota-politicas {
+    border: 1px solid #8b692f;
+    border-left: 5px solid var(--naranja);
+    background: #182b3e;
+    color: var(--texto);
+    padding: 18px 22px;
+    border-radius: 12px;
+    margin: 16px auto;
+}
+.aviso-cambio h2, .aviso-agregar-semestral h2,
+.avisos-renta strong { color: var(--naranja); }
+.aviso-cambio p, .aviso-agregar-semestral p,
+.avisos-renta p, .nota-politicas { color: #dce9f6; line-height: 1.6; }
 .aviso-cambio label { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; }
-.avisos-renta { max-width: 1100px; }
+.aviso-cambio input[type="checkbox"] { accent-color: var(--naranja); }
+.avisos-renta { width: min(1100px, calc(100% - 32px)); }
 .avisos-renta p { margin: 6px 0; }
 .nota-politicas { max-width: 1050px; }
+.mensaje-operacion { color: var(--naranja) !important; font-weight: 700; }
+.detalle-cambio { display: block; margin-top: 8px; color: var(--secundario); }
 [hidden] { display: none !important; }
