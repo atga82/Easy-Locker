@@ -97,6 +97,8 @@ async function init() {
         return;
     }
 
+    if (user) cargarAvisos().catch(console.error);
+
     if ($('formRegistro')) setupRegistro();
     if ($('formLogin')) setupLogin();
     if ($('cuentaNombre')) setupCuenta();
@@ -157,17 +159,58 @@ function setupLogin() {
     });
 }
 
+async function cargarAvisos() {
+    const avisos = await api('/api/avisos');
+    if (!avisos.length || $('avisosRenta')) return;
+    const banner = document.createElement('section');
+    banner.id = 'avisosRenta';
+    banner.className = 'avisos-renta';
+    const heading = document.createElement('strong');
+    heading.textContent = 'Avisos de vencimiento';
+    banner.appendChild(heading);
+    for (const aviso of avisos) {
+        const paragraph = document.createElement('p');
+        paragraph.textContent = aviso.mensaje;
+        banner.appendChild(paragraph);
+    }
+    document.querySelector('header')?.insertAdjacentElement('afterend', banner);
+}
+
 async function cargarAcceso() {
     try {
         const result = await api('/api/mi-acceso');
-        text('codigoAcceso', result.activo ? result.codigo : '------');
-        text(
-            'estadoAcceso',
-            result.activo
-                ? result.edificio + ' · Piso ' + result.piso + ' · Casillero ' + result.numero +
-                  '. Código de demostración (no abre una cerradura física).'
-                : result.mensaje
-        );
+        const codigos = result.codigos || [];
+        const first = codigos[0];
+        text('codigoAcceso', first ? first.codigo : '------');
+        text('estadoAcceso', first
+            ? 'Tienes ' + codigos.length + ' casillero(s) activos. Cada casillero tiene su propio código de demostración.'
+            : result.mensaje);
+        const section = $('codigoAcceso')?.closest('.codigo-acceso');
+        if (!section) return;
+        let list = $('listaCodigos');
+        if (!list) {
+            list = document.createElement('div');
+            list.id = 'listaCodigos';
+            list.className = 'lista-codigos';
+            section.insertAdjacentElement('afterend', list);
+        }
+        list.replaceChildren();
+        codigos.forEach(info => {
+            const item = document.createElement('article');
+            item.className = 'tarjeta-codigo';
+            const title = document.createElement('strong');
+            title.textContent = info.plan + ' · ' + info.edificio + ' · Piso ' + info.piso + ' · Casillero #' + info.numero;
+            const code = document.createElement('span');
+            code.className = 'numero-codigo';
+            code.textContent = info.codigo;
+            const expiration = document.createElement('small');
+            expiration.textContent = 'Vence: ' + new Date(info.vence).toLocaleString('es-MX');
+            item.append(title, code, expiration);
+            list.appendChild(item);
+        });
+        // Ocultamos el código antiguo porque la lista ya muestra TODOS los códigos.
+        const oldCard = section.querySelector('.codigo-visual');
+        if (oldCard) oldCard.hidden = codigos.length > 0;
     } catch (error) {
         text('estadoAcceso', error.message);
     }
@@ -221,81 +264,102 @@ async function setupCuenta() {
 
     try {
         const rents = await api('/api/rentas');
-        const active = rents.find(rent => ['activa', 'pendiente_pago'].includes(rent.estado));
-        if (active) {
-            text(
-                'cuentaCasillero',
-                active.edificio + ' · Piso ' + active.piso + ' · #' + active.numero + ' (' + active.estado + ')'
-            );
-            text('cuentaPlan', active.plan);
+        const active = rents.filter(rent => ['activa', 'pendiente_pago'].includes(rent.estado));
+        if (active.length) {
+            const slots = active.flatMap(rent => rent.casilleros.map(locker =>
+                locker.edificio + ' · Piso ' + locker.piso + ' · #' + locker.numero + ' (' + rent.estado + ')'));
+            text('cuentaCasillero', slots.join(' | '));
+            text('cuentaPlan', [...new Set(active.map(rent => rent.plan))].join(' · '));
         }
     } catch {}
     await cargarAcceso();
 }
 
-let selectedLocker = null;
-
+// El usuario puede seleccionar hasta dos casilleros; el servidor valida el límite real según el plan.
 async function setupCasilleros() {
     const faculty = $('facultadCasillero');
     const building = $('edificio');
     const floor = $('piso');
+    const queryParams = new URLSearchParams(location.search);
+    const rentToChange = queryParams.get('cambiar');
+    const oldLocker = queryParams.get('anterior');
+    const semesterToComplete = queryParams.get('agregarSemestral');
+
+    const changing = Boolean(rentToChange && oldLocker);
+    const completingSemester = Boolean(semesterToComplete);
+    const selected = new Map();
 
     if (currentUser.facultad && Array.from(faculty.options).some(option => option.value === currentUser.facultad)) {
         faculty.value = currentUser.facultad;
     }
+    const changeNotice = $('avisoCambio');
+    if (changing && changeNotice) {
+        changeNotice.hidden = false;
+        $('continuarCasillero').textContent = 'Confirmar cambio de casillero';
+    }
 
-    const load = async () => {
-        selectedLocker = null;
+    function updateSelected() {
+        const lockers = [...selected.values()];
+        text('casilleroSeleccionado', lockers.length
+            ? lockers.map(l => l.edificio + ' · Piso ' + l.piso + ' · #' + l.numero).join(' | ')
+            : 'Ninguno');
+        if (!changing) {
+            sessionStorage.setItem('easyLockerCasillerosIds', JSON.stringify(lockers.map(l => l.id)));
+            if (lockers[0]) sessionStorage.setItem('easyLockerCasilleroId', lockers[0].id);
+            else sessionStorage.removeItem('easyLockerCasilleroId');
+        }
+    }
+    if (!changing) {
         sessionStorage.removeItem('easyLockerCasilleroId');
-        text('casilleroSeleccionado', 'Ninguno');
+        sessionStorage.removeItem('easyLockerCasillerosIds');
+    }
+    const load = async () => {
         const title = building.value + ' · Piso ' + floor.value;
         text('tituloPiso', title);
         const container = $('filasCasilleros');
         container.replaceChildren();
-
         try {
             const query = '?facultad=' + encodeURIComponent(faculty.value) +
-                '&edificio=' + encodeURIComponent(building.value) +
-                '&piso=' + encodeURIComponent(floor.value);
+                '&edificio=' + encodeURIComponent(building.value) + '&piso=' + encodeURIComponent(floor.value);
             const rows = await api('/api/casilleros' + query);
             if (!rows.length) {
                 container.textContent = 'No hay casilleros para esta ubicación.';
                 return;
             }
-
-            const columns = 6;
-            for (let index = 0; index < rows.length; index += columns) {
+            for (let index = 0; index < rows.length; index += 6) {
                 const row = document.createElement('div');
                 row.className = 'fila-casilleros';
                 const label = document.createElement('span');
                 label.className = 'numero-fila';
-                label.textContent = 'Fila ' + (Math.floor(index / columns) + 1);
+                label.textContent = 'Fila ' + (Math.floor(index / 6) + 1);
                 row.appendChild(label);
-
-                rows.slice(index, index + columns).forEach(locker => {
+                rows.slice(index, index + 6).forEach(locker => {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'casillero';
-                    button.innerHTML =
-                        '<span class="casillero-numero">' + Number(locker.numero) +
+                    button.innerHTML = '<span class="casillero-numero">' + Number(locker.numero) +
                         '</span><span class="casillero-puerta" aria-hidden="true"></span>';
                     button.setAttribute('aria-label', 'Casillero ' + locker.numero + ', ' + locker.estado);
                     button.title = 'Casillero ' + locker.numero + ': ' + locker.estado;
                     button.disabled = locker.estado !== 'disponible';
                     if (button.disabled) button.classList.add('ocupado');
-
+                    if (selected.has(locker.id)) button.classList.add('seleccionado');
                     button.addEventListener('click', () => {
-                        container.querySelectorAll('.seleccionado').forEach(element =>
-                            element.classList.remove('seleccionado')
-                        );
-                        button.classList.add('seleccionado');
-                        selectedLocker = locker;
-                        sessionStorage.setItem('easyLockerCasilleroId', String(locker.id));
-                        text('casilleroSeleccionado', title + ' · Casillero ' + locker.numero);
-                        text(
-                            'estadoAcceso',
-                            'Casillero seleccionado. El código de demostración se habilita después de confirmar el pago.'
-                        );
+                        if (selected.has(locker.id)) {
+                            selected.delete(locker.id);
+                            button.classList.remove('seleccionado');
+                        } else {
+                           const maxSelection = (changing || completingSemester) ? 1 : 2;
+
+                            if (selected.size >= maxSelection) {
+                                text('casilleroSeleccionado', 'Máximo ' + maxSelection +
+                                    ' casillero(s). Deselecciona uno antes de elegir otro.');
+                                return;
+                            }
+                            selected.set(locker.id, { ...locker, edificio: building.value, piso: floor.value });
+                            button.classList.add('seleccionado');
+                        }
+                        updateSelected();
                     });
                     row.appendChild(button);
                 });
@@ -305,32 +369,81 @@ async function setupCasilleros() {
             container.textContent = error.message;
         }
     };
-
     [faculty, building, floor].forEach(element => element.addEventListener('change', load));
-    $('continuarCasillero').addEventListener('click', event => {
-        if (!selectedLocker) {
+   $('continuarCasillero').addEventListener('click', async event => {
+        if (selected.size === 0) {
             event.preventDefault();
             text('casilleroSeleccionado', 'Primero selecciona un casillero disponible.');
+            return;
+        }
+
+        if (changing) {
+            event.preventDefault();
+            if (!$('aceptaRetiro')?.checked) {
+                message('mensajeCambio', 'Confirma que retirarás tus pertenencias antes del cambio.');
+                return;
+            }
+            try {
+                const selectedId = [...selected.keys()][0];
+                const result = await send('/api/rentas/' + encodeURIComponent(rentToChange) + '/cambiar-casillero', {
+                    casilleroAnteriorId: oldLocker,
+                    casilleroNuevoId: selectedId,
+                    aceptaRetiro: true
+                });
+                message('mensajeCambio', result.mensaje);
+                location.href = 'Historial.html';
+            } catch (error) {
+                message('mensajeCambio', error.message);
+            }
+            return;
+        }
+
+        if (completingSemester) {
+            event.preventDefault();
+            try {
+                const selectedId = [...selected.keys()][0];
+                const result = await send(
+                    '/api/rentas/' + encodeURIComponent(semesterToComplete) + '/agregar-casillero-semestral',
+                    { casilleroNuevoId: selectedId }
+                );
+                message('mensajeCambio', result.mensaje);
+                location.href = 'Historial.html';
+            } catch (error) {
+                message('mensajeCambio', error.message);
+            }
+            return;
         }
     });
     await load();
     await cargarAcceso();
 }
 
-function setupPlanes() {
+async function setupPlanes() {
+    const plans = await api('/api/planes').catch(error => {
+        message('mensajePlan', error.message);
+        return [];
+    });
     document.querySelectorAll('.boton-plan').forEach(button => {
+        const plan = plans.find(item => item.nombre === button.dataset.plan);
+        if (plan?.bloqueado) {
+            button.disabled = true;
+            button.title = 'Ya tienes una renta semestral activa o pendiente';
+            button.textContent = 'Ya cuentas con plan semestral';
+        }
         button.addEventListener('click', async () => {
-            const lockerId = sessionStorage.getItem('easyLockerCasilleroId');
-            if (!lockerId) return message('mensajePlan', 'Primero selecciona un casillero en el mapa.');
-
+            let lockerIds = [];
+            try { lockerIds = JSON.parse(sessionStorage.getItem('easyLockerCasillerosIds') || '[]'); } catch {}
+            if (!lockerIds.length && sessionStorage.getItem('easyLockerCasilleroId')) {
+                lockerIds = [sessionStorage.getItem('easyLockerCasilleroId')];
+            }
+            if (!lockerIds.length) return message('mensajePlan', 'Primero selecciona un casillero en el mapa.');
+            if (!plan) return message('mensajePlan', 'Plan no disponible.');
+            if (lockerIds.length > plan.max_casilleros) {
+                return message('mensajePlan', 'Este plan admite ' + plan.max_casilleros +
+                    ' casillero(s). Regresa al mapa y deselecciona uno.');
+            }
             try {
-                const plans = await api('/api/planes');
-                const plan = plans.find(item => item.nombre === button.dataset.plan);
-                if (!plan) throw new Error('Plan no disponible.');
-                const rent = await send('/api/rentas', {
-                    casilleroId: lockerId,
-                    planId: plan.id
-                });
+                const rent = await send('/api/rentas', { casilleroIds: lockerIds, planId: plan.id });
                 sessionStorage.setItem('easyLockerRentaId', String(rent.id));
                 location.href = 'Pago.html';
             } catch (error) {
@@ -354,7 +467,7 @@ async function setupPago() {
         text('pagoPrecio', '$' + Number(rent.precio_total).toFixed(2) + ' MXN');
         text(
             'pagoUbicacion',
-            rent.facultad + ' · ' + rent.edificio + ' · Piso ' + rent.piso + ' · #' + rent.numero
+            rent.casilleros.map(l => l.edificio + ' · Piso ' + l.piso + ' · #' + l.numero).join(' | ')
         );
 
         $('formPago').addEventListener('submit', async event => {
@@ -394,7 +507,7 @@ async function setupHistorial() {
             const row = document.createElement('tr');
             [
                 rent.facultad,
-                rent.edificio + ', piso ' + rent.piso + ', #' + rent.numero,
+                rent.casilleros.map(l => l.edificio + ', piso ' + l.piso + ', #' + l.numero).join(' | '),
                 rent.plan,
                 rent.estado
             ].forEach(value => {
@@ -418,6 +531,32 @@ async function setupHistorial() {
                     }
                 });
                 actionCell.appendChild(button);
+            } else if (rent.estado === 'activa' && rent.plan === 'Renta semestral') {
+                if (rent.casilleros.length === 1) {
+                    const addButton = document.createElement('button');
+                    addButton.type = 'button';
+                    addButton.textContent = 'Agregar segundo incluido';
+                    addButton.className = 'boton boton-principal admin-small-button';
+                    addButton.addEventListener('click', () => {
+                        location.href = 'casilleros.html?agregarSemestral=' + encodeURIComponent(rent.id);
+                    });
+                    actionCell.appendChild(addButton);
+                }
+                if (!rent.puede_cambiar) {
+                    actionCell.textContent = 'Próximo cambio: ' + new Date(rent.proximo_cambio).toLocaleString('es-MX');
+                } else {
+                    rent.casilleros.forEach(locker => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.textContent = 'Cambiar #' + locker.numero;
+                        button.className = 'boton boton-secundario admin-small-button';
+                        button.addEventListener('click', () => {
+                            location.href = 'casilleros.html?cambiar=' + encodeURIComponent(rent.id) +
+                                '&anterior=' + encodeURIComponent(locker.id);
+                        });
+                        actionCell.appendChild(button);
+                    });
+                }
             } else {
                 actionCell.textContent = '—';
             }

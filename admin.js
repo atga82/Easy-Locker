@@ -44,8 +44,10 @@ const definitions = {
         { name: 'nombre', label: 'Nombre del plan', required: true },
         { name: 'descripcion', label: 'Descripción', type: 'textarea' },
         { name: 'duracion_valor', label: 'Duración (valor)', type: 'number', required: true },
-        { name: 'duracion_unidad', label: 'Unidad', type: 'select-static', options: ['dia', 'semestre'], required: true },
+        { name: 'duracion_unidad', label: 'Unidad', type: 'select-static', options: ['dia', 'mes', 'semestre'], required: true },
         { name: 'precio', label: 'Precio', type: 'number', required: true, step: '0.01' },
+        { name: 'max_casilleros', label: 'Máximo de casilleros (1 o 2)', type: 'number', required: true },
+        { name: 'cambios_por_semana', label: 'Cambios permitidos por semana (0 o 1)', type: 'number', required: true },
         { name: 'moneda', label: 'Moneda', required: true },
         { name: 'activo', label: 'Activo', type: 'checkbox' }
     ],

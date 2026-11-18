@@ -50,15 +50,30 @@ async function seedDatabase() {
             duracion_valor: 1,
             duracion_unidad: 'dia',
             precio: 25,
+            max_casilleros: 1,
+            cambios_por_semana: 0,
+            moneda: 'MXN',
+            activo: true
+        },
+        {
+            nombre: 'Plan mensual',
+            descripcion: 'Un casillero fijo durante un mes. Incluye un código de acceso.',
+            duracion_valor: 1,
+            duracion_unidad: 'mes',
+            precio: 270,
+            max_casilleros: 1,
+            cambios_por_semana: 0,
             moneda: 'MXN',
             activo: true
         },
         {
             nombre: 'Renta semestral',
-            descripcion: 'Uso del casillero durante un semestre.',
+            descripcion: 'Hasta dos casilleros durante seis meses; se permite cambiar uno cada siete días.',
             duracion_valor: 1,
             duracion_unidad: 'semestre',
             precio: 650,
+            max_casilleros: 2,
+            cambios_por_semana: 1,
             moneda: 'MXN',
             activo: true
         }

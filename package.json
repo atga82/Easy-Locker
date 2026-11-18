@@ -1,1 +1,25 @@
-{"name":"easy-locker","version":"3.0.0","private":true,"description":"Easy Locker - aplicación web con Node.js, Express y MongoDB","main":"server.js","scripts":{"start":"node server.js","dev":"node --watch server.js","seed":"node seed.js","check":"node --check server.js && node --check models.js && node --check db.js && node --check seed.js && node --check app.js && node --check admin.js && node --check tests/smoke-test.js && node --check tests/crud-validation-test.js","test":"node tests/smoke-test.js","test:crud":"node tests/crud-validation-test.js"},"dependencies":{"bcryptjs":"^3.0.2","cors":"^2.8.5","dotenv":"^18.0.9","express":"^5.1.0","helmet":"^8.1.0","jsonwebtoken":"^9.0.2","mongoose":"^9.0.0"}}
+{
+  "name": "easy-locker",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Easy Locker - aplicación web con Node.js, Express y MongoDB",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node seed.js",
+    "check": "node --check server.js && node --check models.js && node --check db.js && node --check seed.js && node --check scripts/actualizar-planes.js && node --check app.js && node --check admin.js && node --check tests/smoke-test.js && node --check tests/crud-validation-test.js",
+    "test": "node tests/smoke-test.js",
+    "test:crud": "node tests/crud-validation-test.js",
+    "planes:update": "node scripts/actualizar-planes.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.9",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0"
+  }
+}

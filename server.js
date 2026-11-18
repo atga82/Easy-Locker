@@ -142,11 +142,22 @@ const requireAdmin = [
     })
 ];
 
-function accessCode(rentId) {
+function addMonthsClamped(date, months) {
+    // Si alguien paga un 31, el vencimiento cae el último día del mes corto.
+    const result = new Date(date);
+    const originalDay = result.getUTCDate();
+    result.setUTCDate(1);
+    result.setUTCMonth(result.getUTCMonth() + months);
+    const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+    result.setUTCDate(Math.min(originalDay, lastDay));
+    return result;
+}
+
+function accessCode(rentId, lockerId) {
     return String(
         Number.parseInt(
             crypto.createHmac('sha256', ACCESS_CODE_SECRET)
-                .update(String(rentId))
+                .update(String(rentId) + ':' + String(lockerId))
                 .digest('hex')
                 .slice(0, 12),
             16
@@ -154,13 +165,45 @@ function accessCode(rentId) {
     ).padStart(6, '0');
 }
 
+const ACTIVE_RENT_STATES = ['activa', 'pendiente_pago'];
+
+async function countUserLockers(userId) {
+    const rents = await Renta.find({
+        usuario: userId,
+        estado: { $in: ACTIVE_RENT_STATES }
+    }).select('casillero casillero_extra').lean();
+
+    return rents.reduce((total, rent) => {
+        return total +
+            (rent.casillero ? 1 : 0) +
+            (rent.casillero_extra ? 1 : 0);
+    }, 0);
+}
+
+async function findSemesterRent(userId) {
+    const semesterPlans = await Plan.find({
+        duracion_unidad: 'semestre'
+    }).select('_id').lean();
+
+    if (!semesterPlans.length) return null;
+
+    return Renta.findOne({
+        usuario: userId,
+        plan: { $in: semesterPlans.map(p => p._id) },
+        estado: { $in: ACTIVE_RENT_STATES }
+    }).populate('plan', 'duracion_unidad nombre');
+}
+
+
+const lockerIdsFromRent = rent => [rent.casillero, rent.casillero_extra].filter(Boolean);
+
 async function expireRents() {
     const now = new Date();
     const pendingLimit = new Date(now.getTime() - 15 * 60 * 1000);
     const expiredPending = await Renta.find({
         estado: 'pendiente_pago',
         fecha_solicitud: { $lt: pendingLimit }
-    }).select('_id casillero').lean();
+    }).select('_id casillero casillero_extra').lean();
 
     if (expiredPending.length) {
         await Renta.updateMany(
@@ -168,7 +211,7 @@ async function expireRents() {
             { $set: { estado: 'cancelada' } }
         );
         await Casillero.updateMany(
-            { _id: { $in: expiredPending.map(item => item.casillero) }, estado: 'reservado' },
+            { _id: { $in: expiredPending.flatMap(lockerIdsFromRent) }, estado: 'reservado' },
             { $set: { estado: 'disponible' } }
         );
     }
@@ -176,7 +219,7 @@ async function expireRents() {
     const expiredActive = await Renta.find({
         estado: 'activa',
         fecha_fin: { $lt: now, $ne: null }
-    }).select('_id casillero').lean();
+    }).select('_id casillero casillero_extra').lean();
 
     if (expiredActive.length) {
         await Renta.updateMany(
@@ -184,7 +227,7 @@ async function expireRents() {
             { $set: { estado: 'vencida' } }
         );
         await Casillero.updateMany(
-            { _id: { $in: expiredActive.map(item => item.casillero) }, estado: 'ocupado' },
+            { _id: { $in: expiredActive.flatMap(lockerIdsFromRent) }, estado: 'ocupado' },
             { $set: { estado: 'disponible' } }
         );
     }
@@ -198,6 +241,15 @@ async function rentalView(rent) {
     const faculty = building.facultad || {};
     const user = item.usuario || {};
     const plan = item.plan || {};
+    const allLockers = [item.casillero, item.casillero_extra].filter(Boolean).map(slot => ({
+        id: String(slot._id),
+        numero: slot.numero,
+        edificio: slot.piso?.edificio?.nombre || '',
+        piso: slot.piso?.numero_piso
+    }));
+    const lastChange = item.ultimo_cambio_casillero ? new Date(item.ultimo_cambio_casillero) : null;
+    const nextChange = lastChange ? new Date(lastChange.getTime() + 7 * 86400000) : null;
+    const puedeCambiar = item.estado === 'activa' && plan.duracion_unidad === 'semestre' && (!nextChange || nextChange <= new Date());
     return {
         id: String(item._id),
         estado: item.estado,
@@ -208,6 +260,9 @@ async function rentalView(rent) {
         fecha_fin: item.fecha_fin,
         numero: locker.numero,
         casillero_id: locker._id ? String(locker._id) : '',
+        casilleros: allLockers,
+        puede_cambiar: puedeCambiar,
+        proximo_cambio: nextChange,
         edificio: building.nombre || '',
         piso: floor.numero_piso,
         facultad: faculty.nombre || '',
@@ -220,6 +275,7 @@ async function rentalView(rent) {
 const rentPopulate = [
     { path: 'usuario', select: 'nombre apellidos correo matricula' },
     { path: 'casillero', populate: { path: 'piso', populate: { path: 'edificio', populate: { path: 'facultad', select: 'nombre' } } } },
+    { path: 'casillero_extra', populate: { path: 'piso', populate: { path: 'edificio', populate: { path: 'facultad', select: 'nombre' } } } },
     { path: 'plan', select: 'nombre precio duracion_unidad duracion_valor' }
 ];
 
@@ -359,88 +415,204 @@ app.get('/api/casilleros', requireAuth, asyncRoute(async (req, res) => {
     })));
 }));
 
+
+app.post('/api/rentas/:id/agregar-casillero-semestral', requireAuth, asyncRoute(async (req, res) => {
+    await expireRents();
+
+    if (!validId(req.params.id) || !validId(req.body.casilleroNuevoId)) {
+        return fail(res, 400, 'Identificador de renta o casillero inválido.');
+    }
+
+    const totalLockers = await countUserLockers(req.userId);
+    if (totalLockers >= 4) {
+        return fail(res, 409, 'Ya alcanzaste el máximo de 4 casilleros activos o pendientes.');
+    }
+
+    const rent = await Renta.findOne({
+        _id: req.params.id,
+        usuario: req.userId,
+        estado: 'activa',
+        fecha_fin: { $gt: new Date() }
+    }).populate('plan', 'duracion_unidad nombre');
+
+    if (!rent || rent.plan?.duracion_unidad !== 'semestre') {
+        return fail(res, 403, 'Solo puedes completar un plan semestral activo.');
+    }
+
+    if (rent.casillero_extra) {
+        return fail(res, 409, 'Este plan semestral ya tiene sus dos casilleros.');
+    }
+
+    const locker = await Casillero.findOneAndUpdate(
+        { _id: req.body.casilleroNuevoId, estado: 'disponible' },
+        { $set: { estado: 'ocupado' } },
+        { returnDocument: 'after' }
+    );
+
+    if (!locker) {
+        return fail(res, 409, 'El casillero elegido ya no está disponible.');
+    }
+
+    const updated = await Renta.findOneAndUpdate(
+        {
+            _id: rent._id,
+            usuario: req.userId,
+            estado: 'activa',
+            casillero_extra: null
+        },
+        {
+            $set: { casillero_extra: locker._id }
+        },
+        { returnDocument: 'after' }
+    );
+
+    if (!updated) {
+        await Casillero.updateOne(
+            { _id: locker._id, estado: 'ocupado' },
+            { $set: { estado: 'disponible' } }
+        );
+        return fail(res, 409, 'La renta cambió mientras realizabas la operación. Vuelve a intentarlo.');
+    }
+
+    await writeLog({
+        usuario: req.userId,
+        evento: 'SEGUNDO_CASILLERO_SEMESTRAL',
+        req,
+        mensaje: 'Se agregó el segundo casillero incluido al plan semestral.',
+        contexto: {
+            rentaId: String(rent._id),
+            casilleroId: String(locker._id)
+        }
+    });
+
+    res.json({
+        mensaje: 'Se agregó el segundo casillero incluido al plan semestral.'
+    });
+}));
+
+
 app.get('/api/planes', requireAuth, asyncRoute(async (req, res) => {
     const plans = await Plan.find({ activo: true }).sort({ precio: 1 }).lean();
+
+    const totalLockers = await countUserLockers(req.userId);
+    const freeSlots = Math.max(0, 4 - totalLockers);
+    const semesterRent = await findSemesterRent(req.userId);
+
     res.json(plans.map(plan => ({
         id: String(plan._id),
         nombre: plan.nombre,
+        descripcion: plan.descripcion,
         precio: plan.precio,
         moneda: plan.moneda,
         duracion_unidad: plan.duracion_unidad,
-        duracion_valor: plan.duracion_valor
+        duracion_valor: plan.duracion_valor,
+        max_casilleros: plan.duracion_unidad === 'semestre' ? 2 : 1,
+        cambios_por_semana: plan.duracion_unidad === 'semestre' ? 1 : 0,
+        bloqueado: plan.duracion_unidad === 'semestre' && Boolean(semesterRent),
+        cupo_restante: freeSlots,
+        puede_completar_semestral:
+            plan.duracion_unidad === 'semestre' &&
+            Boolean(semesterRent) &&
+            !semesterRent.casillero_extra &&
+            freeSlots > 0
     })));
 }));
 
 app.post('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
     await expireRents();
-    const lockerId = String(req.body.casilleroId || '');
     const planId = String(req.body.planId || '');
-    if (!validId(lockerId) || !validId(planId)) {
-        return fail(res, 400, 'Selecciona un casillero y un plan válidos.');
+    const lockerIds = Array.isArray(req.body.casilleroIds)
+        ? req.body.casilleroIds.map(String)
+        : [String(req.body.casilleroId || '')];
+    if (!validId(planId) || lockerIds.length < 1 || lockerIds.length > 2 ||
+        lockerIds.some(id => !validId(id)) || new Set(lockerIds).size !== lockerIds.length) {
+        return fail(res, 400, 'Selecciona uno o dos casilleros distintos y un plan válido.');
     }
     const plan = await Plan.findOne({ _id: planId, activo: true });
     if (!plan) return fail(res, 404, 'El plan no existe o no está disponible.');
+    const maxSlots = plan.duracion_unidad === 'semestre' ? 2 : 1;
+    if (lockerIds.length > maxSlots) return fail(res, 400, 'Este plan permite solamente ' + maxSlots + ' casillero(s).');
 
-    const locker = await Casillero.findOneAndUpdate(
-        { _id: lockerId, estado: 'disponible' },
-        { $set: { estado: 'reservado' } },
-        { returnDocument: 'after' }
-    );
-    if (!locker) return fail(res, 409, 'El casillero ya no está disponible.');
+    if (plan.duracion_unidad === 'semestre') {
+        const semesterPlans = await Plan.find({ duracion_unidad: 'semestre' }).select('_id').lean();
+        const existing = await Renta.exists({ usuario: req.userId, plan: { $in: semesterPlans.map(p => p._id) }, estado: { $in: ['activa', 'pendiente_pago'] } });
+        if (existing) return fail(res, 409, 'Ya tienes un plan semestral activo o pendiente. No puedes contratar otro.');
+    }
 
+    const reservedIds = [];
     try {
+        for (const id of lockerIds) {
+            const locker = await Casillero.findOneAndUpdate(
+                { _id: id, estado: 'disponible' },
+                { $set: { estado: 'reservado' } },
+                { returnDocument: 'after' }
+            );
+            if (!locker) {
+                const err = new Error('Alguno de los casilleros ya no está disponible.');
+                err.status = 409;
+                throw err;
+            }
+            reservedIds.push(locker._id);
+        }
         const rent = await Renta.create({
-            usuario: req.userId,
-            casillero: locker._id,
-            plan: plan._id,
-            precio_total: plan.precio,
-            moneda: plan.moneda,
+            usuario: req.userId, casillero: reservedIds[0], casillero_extra: reservedIds[1] || null,
+            plan: plan._id, precio_total: plan.precio, moneda: plan.moneda,
             estado: 'pendiente_pago'
         });
-        await writeLog({
-            usuario: req.userId,
-            evento: 'RENTA_CREADA',
-            req,
+        await writeLog({ usuario: req.userId, evento: 'RENTA_CREADA', req,
             mensaje: 'Se creó una reserva pendiente de pago.',
-            contexto: { rentaId: rent._id.toString(), casilleroId: locker._id.toString() }
-        });
-        res.status(201).json({
-            id: rent._id.toString(),
-            mensaje: 'Reserva creada. Completa el pago simulado antes de 15 minutos.'
-        });
-    } catch (error) {
-        await Casillero.updateOne({ _id: locker._id, estado: 'reservado' }, { $set: { estado: 'disponible' } });
-        throw error;
+            contexto: { rentaId: String(rent._id), casilleros: reservedIds.map(String) } });
+        return res.status(201).json({ id: String(rent._id), mensaje: 'Reserva creada. Confirma el pago simulado antes de 15 minutos.' });
+    } catch (err) {
+        if (reservedIds.length) await Casillero.updateMany(
+            { _id: { $in: reservedIds }, estado: 'reservado' },
+            { $set: { estado: 'disponible' } }
+        );
+        throw err;
     }
 }));
 
 app.get('/api/mi-acceso', requireAuth, asyncRoute(async (req, res) => {
     await expireRents();
-    const rent = await Renta.findOne({
-        usuario: req.userId,
-        estado: 'activa',
-        fecha_fin: { $gt: new Date() }
-    }).sort({ fecha_inicio: -1 }).populate({
-        path: 'casillero',
-        populate: { path: 'piso', populate: { path: 'edificio' } }
-    });
-    if (!rent) return res.json({
-        activo: false,
-        mensaje: 'El código se mostrará después de confirmar la renta.'
-    });
-    const locker = rent.casillero;
-    const floor = locker?.piso;
-    const building = floor?.edificio;
+    const rents = await Renta.find({
+        usuario: req.userId, estado: 'activa', fecha_fin: { $gt: new Date() }
+    }).sort({ fecha_inicio: -1 }).populate([
+        { path: 'casillero', populate: { path: 'piso', populate: { path: 'edificio' } } },
+        { path: 'casillero_extra', populate: { path: 'piso', populate: { path: 'edificio' } } },
+        { path: 'plan', select: 'nombre' }
+    ]);
+    const codigos = [];
+    for (const rent of rents) {
+        for (const locker of [rent.casillero, rent.casillero_extra].filter(Boolean)) {
+            codigos.push({
+                renta_id: String(rent._id), casillero_id: String(locker._id),
+                codigo: accessCode(rent._id, locker._id),
+                numero: locker.numero, edificio: locker.piso?.edificio?.nombre || '',
+                piso: locker.piso?.numero_piso, plan: rent.plan?.nombre || '', vence: rent.fecha_fin
+            });
+        }
+    }
     res.set('Cache-Control', 'no-store');
-    res.json({
-        activo: true,
-        codigo: accessCode(rent._id),
-        numero: locker?.numero,
-        edificio: building?.nombre || '',
-        piso: floor?.numero_piso,
-        vence: rent.fecha_fin,
-        nota: 'Código de demostración; no abre una cerradura física.'
-    });
+    if (!codigos.length) return res.json({ activo: false, codigos: [], mensaje: 'Todavía no tienes casilleros activos.' });
+    res.json({ activo: true, codigos, ...codigos[0],
+        nota: 'Códigos de demostración; no abren cerraduras físicas.' });
+}));
+
+// Avisos visibles al entrar en la aplicación; NO envía notificaciones push ni correos.
+app.get('/api/avisos', requireAuth, asyncRoute(async (req, res) => {
+    await expireRents();
+    const now = Date.now();
+    const rents = await Renta.find({ usuario: req.userId,
+        $or: [{ estado: 'activa' }, { estado: 'vencida', fecha_fin: { $gte: new Date(now - 7 * 86400000) } }]
+    }).populate('plan', 'nombre').sort({ fecha_fin: 1 }).lean();
+    const avisos = rents.filter(r => r.fecha_fin && (r.estado === 'vencida' || new Date(r.fecha_fin).getTime() - now <= 3 * 86400000))
+        .map(r => ({
+            renta_id: String(r._id), estado: r.estado, vence: r.fecha_fin,
+            mensaje: r.estado === 'vencida'
+                ? 'Tu renta ' + (r.plan?.nombre || '') + ' venció. Retira tus pertenencias; la administración puede gestionar su retiro conforme al reglamento.'
+                : 'Tu renta ' + (r.plan?.nombre || '') + ' está por vencer (' + new Date(r.fecha_fin).toLocaleDateString('es-MX') + '). Retira tus pertenencias antes del vencimiento.'
+        }));
+    res.json(avisos);
 }));
 
 app.get('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
@@ -449,6 +621,22 @@ app.get('/api/rentas', requireAuth, asyncRoute(async (req, res) => {
         .sort({ fecha_solicitud: -1 })
         .populate(rentPopulate);
     res.json(await Promise.all(rents.map(rentalView)));
+
+    const activeLockerCount = await countUserLockers(req.userId);
+    const freeSlots = 4 - activeLockerCount;
+
+    if (freeSlots <= 0) {
+        return fail(res, 409, 'Ya alcanzaste el máximo de 4 casilleros activos o pendientes.');
+    }
+
+    if (lockerIds.length > freeSlots) {
+        return fail(
+            res,
+            409,
+            'Solo puedes agregar ' + freeSlots +
+            ' casillero(s) más. El máximo total por usuario es 4.'
+        );
+    }
 }));
 
 app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
@@ -460,12 +648,11 @@ app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
     if (!rent) return fail(res, 409, 'Esta reserva ya no admite pagos.');
 
     const now = new Date();
-    const end = new Date(now);
-    if (rent.plan.duracion_unidad === 'dia') {
-        end.setDate(end.getDate() + rent.plan.duracion_valor);
-    } else {
-        end.setMonth(end.getMonth() + (rent.plan.duracion_valor * 6));
-    }
+    const end = rent.plan.duracion_unidad === 'mes'
+        ? addMonthsClamped(now, rent.plan.duracion_valor)
+        : rent.plan.duracion_unidad === 'semestre'
+            ? addMonthsClamped(now, rent.plan.duracion_valor * 6)
+            : new Date(now.getTime() + rent.plan.duracion_valor * 86400000);
 
     const activated = await Renta.findOneAndUpdate(
         { _id: rent._id, usuario: req.userId, estado: 'pendiente_pago' },
@@ -474,16 +661,18 @@ app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
     );
     if (!activated) return fail(res, 409, 'La reserva ya fue procesada.');
 
-    const locker = await Casillero.findOneAndUpdate(
-        { _id: rent.casillero, estado: 'reservado' },
-        { $set: { estado: 'ocupado' } },
-        { returnDocument: 'after' }
-    );
-    if (!locker) {
-        await Renta.updateOne({ _id: rent._id, estado: 'activa' }, {
-            $set: { estado: 'pendiente_pago', fecha_inicio: null, fecha_fin: null }
-        });
-        return fail(res, 409, 'No se pudo asignar el casillero. La reserva permanece pendiente.');
+    const occupiedIds = [];
+    for (const lockerId of lockerIdsFromRent(rent)) {
+        const locker = await Casillero.findOneAndUpdate(
+            { _id: lockerId, estado: 'reservado' },
+            { $set: { estado: 'ocupado' } }, { returnDocument: 'after' }
+        );
+        if (!locker) {
+            await Casillero.updateMany({ _id: { $in: occupiedIds }, estado: 'ocupado' }, { $set: { estado: 'reservado' } });
+            await Renta.updateOne({ _id: rent._id, estado: 'activa' }, { $set: { estado: 'pendiente_pago', fecha_inicio: null, fecha_fin: null } });
+            return fail(res, 409, 'No se pudo asignar uno de los casilleros. La renta permanece pendiente.');
+        }
+        occupiedIds.push(locker._id);
     }
 
     try {
@@ -500,7 +689,7 @@ app.post('/api/rentas/:id/pagar', requireAuth, asyncRoute(async (req, res) => {
         await Renta.updateOne({ _id: rent._id, estado: 'activa' }, {
             $set: { estado: 'pendiente_pago', fecha_inicio: null, fecha_fin: null }
         });
-        await Casillero.updateOne({ _id: locker._id, estado: 'ocupado' }, { $set: { estado: 'reservado' } });
+        await Casillero.updateMany({ _id: { $in: occupiedIds }, estado: 'ocupado' }, { $set: { estado: 'reservado' } });
         throw error;
     }
 
@@ -522,8 +711,8 @@ app.post('/api/rentas/:id/cancelar', requireAuth, asyncRoute(async (req, res) =>
         { returnDocument: 'after' }
     );
     if (!rent) return fail(res, 409, 'Solo se cancelan reservas pendientes.');
-    await Casillero.updateOne(
-        { _id: rent.casillero, estado: 'reservado' },
+    await Casillero.updateMany(
+        { _id: { $in: lockerIdsFromRent(rent) }, estado: 'reservado' },
         { $set: { estado: 'disponible' } }
     );
     await writeLog({
@@ -534,6 +723,60 @@ app.post('/api/rentas/:id/cancelar', requireAuth, asyncRoute(async (req, res) =>
         contexto: { rentaId: rent._id.toString() }
     });
     res.json({ mensaje: 'Reserva cancelada.' });
+}));
+
+// Semestral: un reemplazo de UN casillero por periodo móvil de 7 días.
+app.post('/api/rentas/:id/cambiar-casillero', requireAuth, asyncRoute(async (req, res) => {
+    await expireRents();
+    if (!validId(req.params.id) || !validId(req.body.casilleroAnteriorId) || !validId(req.body.casilleroNuevoId)) {
+        return fail(res, 400, 'Identificadores de casilleros o renta inválidos.');
+    }
+    if (req.body.aceptaRetiro !== true) {
+        return fail(res, 400, 'Debes confirmar que retirarás tus pertenencias antes del cambio.');
+    }
+    const rent = await Renta.findOne({ _id: req.params.id, usuario: req.userId, estado: 'activa', fecha_fin: { $gt: new Date() } })
+        .populate('plan', 'duracion_unidad');
+    if (!rent || rent.plan?.duracion_unidad !== 'semestre') {
+        return fail(res, 403, 'Solo puedes cambiar casilleros de un plan semestral activo.');
+    }
+    const previousId = String(req.body.casilleroAnteriorId);
+    const newId = String(req.body.casilleroNuevoId);
+    const slots = [String(rent.casillero), rent.casillero_extra && String(rent.casillero_extra)].filter(Boolean);
+    if (!slots.includes(previousId) || slots.includes(newId)) {
+        return fail(res, 400, 'Selecciona uno de tus casilleros actuales y uno nuevo diferente.');
+    }
+    const now = new Date();
+    if (rent.ultimo_cambio_casillero && now - rent.ultimo_cambio_casillero < 7 * 86400000) {
+        const next = new Date(rent.ultimo_cambio_casillero.getTime() + 7 * 86400000);
+        return fail(res, 409, 'Ya utilizaste tu cambio semanal. Podrás volver a cambiar después de ' + next.toLocaleString('es-MX') + '.');
+    }
+    const chosen = await Casillero.findOneAndUpdate(
+        { _id: newId, estado: 'disponible' }, { $set: { estado: 'ocupado' } }, { returnDocument: 'after' }
+    );
+    if (!chosen) return fail(res, 409, 'El nuevo casillero ya no está disponible.');
+    const slotField = String(rent.casillero) === previousId ? 'casillero' : 'casillero_extra';
+    try {
+        const updated = await Renta.findOneAndUpdate({
+            _id: rent._id, usuario: req.userId, estado: 'activa',
+            [slotField]: rent[slotField], ultimo_cambio_casillero: rent.ultimo_cambio_casillero || null
+        }, {
+            $set: { [slotField]: chosen._id, ultimo_cambio_casillero: now },
+            $push: { historial_cambios: { anterior: rent[slotField], nuevo: chosen._id, fecha: now } }
+        }, { returnDocument: 'after' });
+        if (!updated) {
+            await Casillero.updateOne({ _id: chosen._id, estado: 'ocupado' }, { $set: { estado: 'disponible' } });
+            return fail(res, 409, 'La renta cambió mientras realizabas la operación. Vuelve a intentarlo.');
+        }
+    } catch (error) {
+        await Casillero.updateOne({ _id: chosen._id, estado: 'ocupado' }, { $set: { estado: 'disponible' } });
+        throw error;
+    }
+    await Casillero.updateOne({ _id: previousId, estado: 'ocupado' }, { $set: { estado: 'disponible' } });
+    await writeLog({ usuario: req.userId, evento: 'CAMBIO_CASILLERO_SEMESTRAL', req,
+        mensaje: 'Se reemplazó un casillero del plan semestral.',
+        contexto: { rentaId: String(rent._id), anterior: previousId, nuevo: newId } });
+    res.json({ mensaje: 'Casillero cambiado correctamente. Tienes un nuevo código de acceso.',
+        proximo_cambio: new Date(now.getTime() + 7 * 86400000) });
 }));
 
 app.get('/api/admin/resumen', requireAdmin, asyncRoute(async (req, res) => {
@@ -718,6 +961,8 @@ app.get('/api/admin/reportes/historial-rentas', requireAdmin, asyncRoute(async (
         { $unwind: '$usuarioDoc' },
         { $lookup: { from: 'casilleros', localField: 'casillero', foreignField: '_id', as: 'casilleroDoc' } },
         { $unwind: '$casilleroDoc' },
+        { $lookup: { from: 'casilleros', localField: 'casillero_extra', foreignField: '_id', as: 'casilleroExtraDoc' } },
+        { $unwind: { path: '$casilleroExtraDoc', preserveNullAndEmptyArrays: true } },
         { $lookup: { from: 'pisos', localField: 'casilleroDoc.piso', foreignField: '_id', as: 'pisoDoc' } },
         { $unwind: '$pisoDoc' },
         { $lookup: { from: 'edificios', localField: 'pisoDoc.edificio', foreignField: '_id', as: 'edificioDoc' } },
@@ -750,6 +995,7 @@ app.get('/api/admin/reportes/historial-rentas', requireAdmin, asyncRoute(async (
                 edificio: '$edificioDoc.nombre',
                 numero_piso: '$pisoDoc.numero_piso',
                 numero_casillero: '$casilleroDoc.numero',
+                segundo_casillero: { $ifNull: ['$casilleroExtraDoc.numero', null] },
                 plan: '$planDoc.nombre',
                 estado_renta: '$estado',
                 precio_total: '$precio_total',
@@ -778,7 +1024,7 @@ const resourceSpecs = {
     edificios: { Model: Edificio, fields: ['facultad', 'nombre', 'activo'], populate: [{ path: 'facultad', select: 'nombre' }] },
     pisos: { Model: Piso, fields: ['edificio', 'numero_piso', 'activo'], populate: [{ path: 'edificio', select: 'nombre' }] },
     casilleros: { Model: Casillero, fields: ['piso', 'numero', 'fila', 'columna', 'estado'], populate: [{ path: 'piso', select: 'numero_piso' }] },
-    planes: { Model: Plan, fields: ['nombre', 'descripcion', 'duracion_valor', 'duracion_unidad', 'precio', 'moneda', 'activo'] },
+    planes: { Model: Plan, fields: ['nombre', 'descripcion', 'duracion_valor', 'duracion_unidad', 'precio', 'max_casilleros', 'cambios_por_semana', 'moneda', 'activo'] },
     rentas: {
         Model: Renta,
         fields: ['usuario', 'casillero', 'plan', 'estado', 'precio_total', 'moneda', 'fecha_inicio', 'fecha_fin'],
@@ -806,7 +1052,10 @@ const deleteGuards = {
     ],
     edificios: [[Piso, 'edificio', 'El edificio todavía contiene pisos.']],
     pisos: [[Casillero, 'piso', 'El piso todavía contiene casilleros.']],
-    casilleros: [[Renta, 'casillero', 'El casillero tiene rentas registradas.']],
+    casilleros: [
+        [Renta, 'casillero', 'El casillero tiene rentas registradas.'],
+        [Renta, 'casillero_extra', 'El casillero es el segundo casillero de una renta.']
+    ],
     planes: [[Renta, 'plan', 'El plan tiene rentas registradas.']],
     usuarios: [
         [Renta, 'usuario', 'El usuario tiene rentas registradas.'],
@@ -857,6 +1106,8 @@ async function prepareAdminData(resource, body, isCreate) {
     if (resource === 'rentas' && data.precio_total !== undefined) data.precio_total = Number(data.precio_total);
     if (resource === 'pagos' && data.monto !== undefined) data.monto = Number(data.monto);
     if (resource === 'planes' && data.precio !== undefined) data.precio = Number(data.precio);
+    if (resource === 'planes' && data.max_casilleros !== undefined) data.max_casilleros = Number(data.max_casilleros);
+    if (resource === 'planes' && data.cambios_por_semana !== undefined) data.cambios_por_semana = Number(data.cambios_por_semana);
     if (resource === 'casilleros') {
         for (const field of ['numero', 'fila', 'columna']) if (data[field] !== undefined) data[field] = Number(data[field]);
     }

@@ -29,7 +29,7 @@
     <main class="seccion">
         <div class="seccion-titulo">
             <h1>Selecciona tu casillero</h1>
-            <p>Elige facultad, edificio y piso. Los casilleros ocupados no se pueden seleccionar.</p>
+            <p>Elige hasta dos casilleros disponibles (el semestral admite dos; diario y mensual, uno por compra). Puedes seleccionarlos en diferentes pisos. Los ocupados no se pueden seleccionar.</p>
         </div>
 
             <div class="controles">
@@ -90,6 +90,12 @@
             </div>
         </section>
 
+        <section id="avisoCambio" class="aviso-cambio" hidden>
+            <h2>Cambiar un casillero del plan semestral</h2>
+            <p>Solo se permite cambiar uno de tus casilleros cada 7 días. Retira todas tus pertenencias del anterior antes de confirmar. El casillero anterior se liberará y el código de acceso cambiará.</p>
+            <label><input id="aceptaRetiro" type="checkbox"> Confirmo que retiraré mis pertenencias y que los objetos restantes podrán ser gestionados conforme al reglamento de la institución.</label>
+            <p id="mensajeCambio" role="status"></p>
+        </section>
         <div class="resumen">
             <div>
                 <span>Casillero seleccionado</span>

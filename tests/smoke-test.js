@@ -24,9 +24,9 @@ async function cleanTestUser(correo) {
     try {
         const user = await Usuario.findOne({ correo });
         if (!user) return;
-        const rents = await Renta.find({ usuario: user._id }).select('_id casillero').lean();
+        const rents = await Renta.find({ usuario: user._id }).select('_id casillero casillero_extra').lean();
         const rentIds = rents.map(rent => rent._id);
-        const lockerIds = rents.map(rent => rent.casillero);
+        const lockerIds = rents.flatMap(rent => [rent.casillero, rent.casillero_extra].filter(Boolean));
         if (rentIds.length) {
             await Pago.deleteMany({ renta: { $in: rentIds } });
             await Renta.deleteMany({ _id: { $in: rentIds } });
@@ -128,7 +128,7 @@ async function main() {
 
     const plans = await request('/api/planes', { headers: adminHeaders });
     assert.equal(plans.response.status, 200);
-    assert.equal(plans.body.length, 2);
+    assert.equal(plans.body.length, 3);
     results.push('Consulta pública de casilleros y planes: OK');
 
     try {

@@ -63,8 +63,10 @@ const PlanSchema = new Schema({
     nombre: { type: String, required: true, trim: true, unique: true, maxlength: 80 },
     descripcion: { type: String, trim: true, maxlength: 255, default: '' },
     duracion_valor: { type: Number, required: true, min: 1, default: 1 },
-    duracion_unidad: { type: String, required: true, enum: ['dia', 'semestre'] },
+    duracion_unidad: { type: String, required: true, enum: ['dia', 'mes', 'semestre'] },
     precio: { type: Number, required: true, min: 0 },
+    max_casilleros: { type: Number, enum: [1, 2], default: 1 },
+    cambios_por_semana: { type: Number, enum: [0, 1], default: 0 },
     moneda: { type: String, uppercase: true, trim: true, default: 'MXN', minlength: 3, maxlength: 3 },
     activo: { type: Boolean, default: true }
 }, common);
@@ -72,6 +74,13 @@ const PlanSchema = new Schema({
 const RentaSchema = new Schema({
     usuario: { type: objectId, ref: 'Usuario', required: true, index: true },
     casillero: { type: objectId, ref: 'Casillero', required: true, index: true },
+    casillero_extra: { type: objectId, ref: 'Casillero', default: null, index: true },
+    ultimo_cambio_casillero: { type: Date, default: null },
+    historial_cambios: [{
+        anterior: { type: objectId, ref: 'Casillero', required: true },
+        nuevo: { type: objectId, ref: 'Casillero', required: true },
+        fecha: { type: Date, default: Date.now }
+    }],
     plan: { type: objectId, ref: 'Plan', required: true, index: true },
     estado: {
         type: String,
