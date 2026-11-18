@@ -74,6 +74,20 @@ async function init() {
     const navLink = $('navSesion');
     if (navLink) navLink.textContent = user ? 'Cerrar sesión' : 'Iniciar sesión';
 
+    if (user?.rol === 'administrador') {
+        const nav = $('navegacion');
+
+        if (nav && !$('navAdmin')) {
+            const adminLink = document.createElement('a');
+
+            adminLink.id = 'navAdmin';
+            adminLink.href = 'Admin.html';
+            adminLink.textContent = 'Administración';
+
+            nav.appendChild(adminLink);
+        }
+    }
+
     if (privatePages.includes(urlPage) && !user) {
         location.href = 'login.html?volver=' + encodeURIComponent(location.pathname);
         return;
@@ -127,10 +141,16 @@ function setupLogin() {
             });
             sessionStorage.setItem(tokenKey, result.token);
             message('mensajeLogin', '¡Bienvenido!');
-            const back = new URLSearchParams(location.search).get('volver');
-            location.href = back && back.startsWith('/') && !back.startsWith('//')
-                ? back
-                : 'cuenta.html';
+
+           const back = new URLSearchParams(location.search).get('volver');
+            if (back && back.startsWith('/') && !back.startsWith('//')) {
+                location.href = back;
+            } else if (result.usuario?.rol === 'administrador') {
+                location.href = 'Admin.html';
+            } else {
+                location.href = 'cuenta.html';
+            }
+            
         } catch (error) {
             message('mensajeLogin', error.message);
         }

@@ -10,7 +10,11 @@ if (dnsServers.length) dns.setServers(dnsServers);
 
 const mongoose = require('mongoose');
 
-const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/easy_locker';
+const mongoUri = process.env.MONGODB_URI;
+
+if (!mongoUri) {
+    throw new Error("Falta MONGODB_URI en el archivo .env");
+}
 
 async function connectDB() {
     mongoose.set('strictQuery', true);
